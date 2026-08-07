@@ -1,0 +1,105 @@
+@page "/graduate/applications"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+@using GradLink.Shared.Enums
+
+<div class="mb-32 mt-48">
+    <h1 class="text-h1">My Applications</h1>
+</div>
+
+@if (_isLoading)
+{
+    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+}
+else
+{
+    <!-- Kanban Board Container -->
+    <div class="kanban-board mb-64">
+        
+        <!-- Applied Column -->
+        <div class="kanban-column">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-label color-secondary">PENDING</h2>
+                <span class="app-badge app-badge-neutral">@_applications.Count(a => a.Status == ApplicationStatus.Pending)</span>
+            </div>
+            
+            @foreach (var app in _applications.Where(a => a.Status == ApplicationStatus.Pending))
+            {
+                <AppCard Padding="true" Hoverable="true">
+                    <div class="flex flex-col gap-8">
+                        <h3 class="text-h3">@app.JobTitle</h3>
+                        <span class="text-body-sm color-secondary flex items-center gap-4"><Icon Name="building" Size="14" /> @app.CompanyName</span>
+                        <span class="text-caption color-secondary mt-8">Applied @((int)(DateTime.UtcNow - app.AppliedDate).TotalDays)d ago</span>
+                    </div>
+                </AppCard>
+            }
+        </div>
+
+        <div class="kanban-column">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-label color-secondary">REVIEWED</h2>
+                <span class="app-badge app-badge-accent">@_applications.Count(a => a.Status == ApplicationStatus.Reviewed)</span>
+            </div>
+            
+            @foreach (var app in _applications.Where(a => a.Status == ApplicationStatus.Reviewed))
+            {
+                <AppCard Padding="true" Hoverable="true">
+                    <div class="flex flex-col gap-8">
+                        <h3 class="text-h3">@app.JobTitle</h3>
+                        <span class="text-body-sm color-secondary flex items-center gap-4"><Icon Name="building" Size="14" /> @app.CompanyName</span>
+                    </div>
+                </AppCard>
+            }
+        </div>
+
+        <div class="kanban-column">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-label color-secondary">SHORTLISTED & ACCEPTED</h2>
+                <span class="app-badge app-badge-success">@_applications.Count(a => a.Status == ApplicationStatus.Shortlisted || a.Status == ApplicationStatus.Accepted)</span>
+            </div>
+            
+            @foreach (var app in _applications.Where(a => a.Status == ApplicationStatus.Shortlisted || a.Status == ApplicationStatus.Accepted))
+            {
+                <AppCard Padding="true" Hoverable="true">
+                    <div class="flex flex-col gap-8">
+                        <h3 class="text-h3">@app.JobTitle</h3>
+                        <span class="text-body-sm color-secondary flex items-center gap-4"><Icon Name="building" Size="14" /> @app.CompanyName</span>
+                    </div>
+                </AppCard>
+            }
+        </div>
+
+        <div class="kanban-column">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-label color-secondary">REJECTED</h2>
+                <span class="app-badge app-badge-danger">@_applications.Count(a => a.Status == ApplicationStatus.Rejected)</span>
+            </div>
+            
+            @foreach (var app in _applications.Where(a => a.Status == ApplicationStatus.Rejected))
+            {
+                <AppCard Padding="true" Hoverable="true">
+                    <div class="flex flex-col gap-8">
+                        <h3 class="text-h3">@app.JobTitle</h3>
+                        <span class="text-body-sm color-secondary flex items-center gap-4"><Icon Name="building" Size="14" /> @app.CompanyName</span>
+                    </div>
+                </AppCard>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<ApplicationDto> _applications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetGraduateApplicationsAsync();
+        if (result != null)
+        {
+            _applications = result;
+        }
+        _isLoading = false;
+    }
+}

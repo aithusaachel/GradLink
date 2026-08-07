@@ -1,0 +1,89 @@
+@page "/graduate/profile"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject LocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="mb-48 mt-48">
+    <h1 class="text-h1">Profile</h1>
+</div>
+
+@if (_isLoading)
+{
+    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+}
+else if (_profile != null)
+{
+    <div class="flex flex-col gap-32" style="max-width: 800px;">
+        
+        <!-- Header/Avatar Area -->
+        <div class="flex flex-col items-center gap-16 mb-16">
+            <div class="flex items-center justify-center" style="width: 96px; height: 96px; border-radius: 50%; background-color: var(--color-surface); border: 1px solid var(--color-border); font-size: 40px; font-weight: 500;">
+                @(_profile.FullName.FirstOrDefault())
+            </div>
+            <div style="text-align: center;">
+                <h2 class="text-h2">@_profile.FullName</h2>
+                <p class="text-body color-secondary">@_profile.Email</p>
+            </div>
+        </div>
+
+        <!-- Academic Information -->
+        <div class="ios-list-group">
+            <div class="ios-list-header">ACADEMIC INFO</div>
+            <div class="ios-list-cards">
+                <div class="ios-list-row">
+                    <span class="color-primary">University</span>
+                    <span class="color-secondary">@_profile.University</span>
+                </div>
+                <div class="ios-list-row">
+                    <span class="color-primary">Degree</span>
+                    <span class="color-secondary">@_profile.Degree</span>
+                </div>
+                <div class="ios-list-row">
+                    <span class="color-primary">Graduation Year</span>
+                    <span class="color-secondary">@_profile.GraduationYear</span>
+                </div>
+                <div class="ios-list-row">
+                    <span class="color-primary">Bio</span>
+                    <span class="color-secondary">@_profile.Bio</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ios-list-group">
+            <div class="ios-list-header">SKILLS</div>
+            <div class="ios-list-cards">
+                <div class="ios-list-row" style="align-items: flex-start;">
+                    <span class="color-secondary" style="max-width: 400px; line-height: 1.5;">
+                        @_profile.Skills
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action -->
+        <div class="mt-16 text-center">
+            <button class="app-btn app-btn-danger" style="width: 100%;" @onclick="SignOut">Sign Out</button>
+        </div>
+
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private GraduateProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await Api.GetGraduateProfileAsync();
+        _isLoading = false;
+    }
+
+    private async Task SignOut()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserLogout();
+        Navigation.NavigateTo("/login");
+    }
+}

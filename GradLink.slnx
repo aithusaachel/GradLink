@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GradLink.API/GradLink.API.csproj" />
+    <Project Path="src/GradLink.Client/GradLink.Client.csproj" />
+    <Project Path="src/GradLink.Shared/GradLink.Shared.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,82 @@
+@page "/employer/profile"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject LocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="mb-48 mt-48">
+    <h1 class="text-h1">Company Profile</h1>
+</div>
+
+@if (_isLoading)
+{
+    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+}
+else if (_profile != null)
+{
+    <div class="flex flex-col gap-32" style="max-width: 800px;">
+        
+        <!-- Header/Avatar Area -->
+        <div class="flex flex-col items-center gap-16 mb-16">
+            <div class="flex items-center justify-center" style="width: 96px; height: 96px; border-radius: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); font-size: 40px; font-weight: 500;">
+                @(_profile.CompanyName.FirstOrDefault())
+            </div>
+            <div style="text-align: center;">
+                <h2 class="text-h2">@_profile.CompanyName</h2>
+                <p class="text-body color-secondary">@_profile.Email</p>
+            </div>
+        </div>
+
+        <!-- Company Details -->
+        <div class="ios-list-group">
+            <div class="ios-list-header">COMPANY DETAILS</div>
+            <div class="ios-list-cards">
+                <div class="ios-list-row">
+                    <span class="color-primary">Company Name</span>
+                    <span class="color-secondary">@_profile.CompanyName</span>
+                </div>
+                <div class="ios-list-row">
+                    <span class="color-primary">Industry</span>
+                    <span class="color-secondary">@_profile.Industry</span>
+                </div>
+                <div class="ios-list-row">
+                    <span class="color-primary">Website</span>
+                    <span class="color-secondary">@_profile.Website</span>
+                </div>
+                <div class="ios-list-row" style="align-items: flex-start;">
+                    <span class="color-primary" style="margin-top: 2px;">Description</span>
+                    <span class="color-secondary" style="max-width: 400px; text-align: right; line-height: 1.5;">
+                        @_profile.Description
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        
+        <!-- Action -->
+        <div class="mt-16 text-center">
+            <button class="app-btn app-btn-danger" style="width: 100%;" @onclick="SignOut">Sign Out</button>
+        </div>
+
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private EmployerProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await Api.GetEmployerProfileAsync();
+        _isLoading = false;
+    }
+
+    private async Task SignOut()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserLogout();
+        Navigation.NavigateTo("/login");
+    }
+}

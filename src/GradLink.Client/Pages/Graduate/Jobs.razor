@@ -1,0 +1,74 @@
+@page "/graduate/jobs"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+
+<div class="mb-48 mt-48 flex items-center justify-between">
+    <h1 class="text-h1">Job Board</h1>
+</div>
+
+@if (_isLoading)
+{
+    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+}
+else
+{
+    <!-- Filters -->
+    <div class="flex gap-8 mb-32 hide-scrollbar" style="overflow-x: auto;">
+        @foreach (var filter in _filters)
+        {
+            <button class="app-badge @(_selectedFilter == filter ? "app-badge-accent" : "app-badge-neutral")" 
+                    style="cursor: pointer; border: none; font-family: inherit; transition: opacity var(--ease-standard);"
+                    @onclick="() => SelectFilter(filter)">
+                @filter
+            </button>
+        }
+    </div>
+
+    <!-- Job List -->
+    <div class="flex flex-col mb-64">
+        @foreach (var job in _jobs.Where(j => _selectedFilter == "All" || j.Industry == _selectedFilter || (j.Location == "Remote" && _selectedFilter == "Remote")))
+        {
+            <a href="/graduate/jobs/@job.Id" class="ios-list-item">
+                <div class="flex flex-col gap-8">
+                    <h3 class="text-h3">@job.Title</h3>
+                    <div class="flex items-center gap-16 color-secondary">
+                        <span class="flex items-center gap-4"><Icon Name="building" Size="16" /> @job.CompanyName</span>
+                        <span class="flex items-center gap-4"><Icon Name="map-pin" Size="16" /> @job.Location</span>
+                        <span class="flex items-center gap-4"><Icon Name="clock" Size="16" /> @( (int)(DateTime.UtcNow - job.PostedDate).TotalDays )d ago</span>
+                    </div>
+                </div>
+                <Icon Name="chevron-right" Size="20" CssClass="color-secondary" />
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<JobListingDto> _jobs = new();
+    
+    private string _selectedFilter = "All";
+    private string[] _filters = new[] { "All", "Technology", "Finance", "Healthcare", "Remote" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetJobsAsync();
+        if (result != null)
+        {
+            _jobs = result;
+            
+            // Rebuild filters based on industries returned, plus Remote
+            var industries = _jobs.Select(j => j.Industry).Where(i => !string.IsNullOrEmpty(i)).Distinct().ToList();
+            var newFilters = new List<string> { "All" };
+            newFilters.AddRange(industries);
+            if (!newFilters.Contains("Remote")) newFilters.Add("Remote");
+            _filters = newFilters.ToArray();
+        }
+        _isLoading = false;
+    }
+
+    private void SelectFilter(string filter)
+    {
+        _selectedFilter = filter;
+    }
+}

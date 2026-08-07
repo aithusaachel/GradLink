@@ -1,0 +1,27 @@
+<button class="app-btn app-btn-@Variant @(IsFullWidth ? "full-width" : "") @CssClass" 
+        style="@Style"
+        disabled="@(IsDisabled || IsLoading)"
+        @onclick="OnClick"
+        type="@Type">
+    @if (IsLoading)
+    {
+        <Icon Name="loader" Size="16" CssClass="spin" />
+    }
+    else
+    {
+        @ChildContent
+    }
+</button>
+
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Variant { get; set; } = "primary"; // primary, secondary, danger, ghost
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+    [Parameter] public bool IsFullWidth { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public string Type { get; set; } = "button";
+}

@@ -1,0 +1,104 @@
+@page "/employer/jobs/{Id:int}/applicants"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+@using GradLink.Shared.Enums
+
+<div class="mb-48 mt-48">
+    <a href="/employer/dashboard" class="flex items-center gap-8 color-secondary mb-32" style="display: inline-flex; text-decoration: none; transition: color var(--ease-standard);">
+        <Icon Name="chevron-right" Size="20" Style="transform: rotate(180deg);" />
+        <span class="text-label">Back to Dashboard</span>
+    </a>
+    
+    @if (_isLoading)
+    {
+        <div class="p-32 text-body color-secondary">Loading...</div>
+    }
+    else
+    {
+        <h1 class="text-display mb-16">@(_job?.Title ?? "Job Post")</h1>
+        <p class="text-h3 color-secondary" style="font-weight: 400;">@_applicants.Count Applicants</p>
+    }
+</div>
+
+@if (!_isLoading)
+{
+    <div class="flex flex-col mb-64" style="max-width: 1000px;">
+        <!-- Headers (Typography only) -->
+        <div class="flex items-center px-16 pb-16 color-secondary text-label" style="border-bottom: 1px solid var(--color-border); margin-bottom: 8px;">
+            <div class="flex-1">APPLICANT</div>
+            <div style="width: 250px;">STATUS</div>
+            <div style="width: 150px; text-align: right;">APPLIED</div>
+        </div>
+
+        @if (_applicants.Count == 0)
+        {
+            <div class="p-32 text-center text-body-sm color-secondary">No applicants yet.</div>
+        }
+        else
+        {
+            @foreach (var app in _applicants)
+            {
+                <div class="ios-list-item" style="border-bottom: 1px solid var(--color-border); cursor: default;">
+                    <div class="flex-1 flex items-center gap-16">
+                        <div class="flex items-center justify-center" style="width: 40px; height: 40px; border-radius: 50%; background-color: var(--color-surface); border: 1px solid var(--color-border); font-weight: 500;">
+                            @app.GraduateName.FirstOrDefault()
+                        </div>
+                        <div>
+                            <h3 class="text-h3">@app.GraduateName</h3>
+                            <span class="text-caption color-secondary">@app.GraduateEmail</span>
+                        </div>
+                    </div>
+                    <div style="width: 250px;" class="flex items-center gap-8">
+                        <!-- Select dropdown styled nicely -->
+                        <select class="app-input" style="padding: 4px 8px; font-size: 14px;" value="@app.Status" @onchange="@(e => UpdateStatus(app, e.Value?.ToString()))">
+                            @foreach (var status in Enum.GetValues<ApplicationStatus>())
+                            {
+                                <option value="@status">@status.ToString()</option>
+                            }
+                        </select>
+                    </div>
+                    <div style="width: 150px; text-align: right;" class="text-body-sm color-secondary">
+                        @((int)(DateTime.UtcNow - app.AppliedDate).TotalDays)d ago
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool _isLoading = true;
+    private JobListingDto? _job;
+    private List<ApplicationDto> _applicants = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _job = await Api.GetJobByIdAsync(Id);
+        var result = await Api.GetJobApplicantsAsync(Id);
+        if (result != null)
+        {
+            _applicants = result;
+        }
+        _isLoading = false;
+    }
+
+    private async Task UpdateStatus(ApplicationDto app, string? newStatusStr)
+    {
+        if (Enum.TryParse<ApplicationStatus>(newStatusStr, out var newStatus))
+        {
+            var result = await Api.UpdateApplicationStatusAsync(new UpdateApplicationStatusDto 
+            { 
+                ApplicationId = app.Id, 
+                NewStatus = newStatus 
+            });
+            
+            if (result != null)
+            {
+                app.Status = result.Status;
+            }
+        }
+    }
+}

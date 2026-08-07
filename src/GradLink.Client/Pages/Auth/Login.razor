@@ -1,0 +1,180 @@
+@page "/login"
+@page "/register"
+@inject NavigationManager Navigation
+@inject ApiClient Api
+@inject LocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@using GradLink.Shared.Enums
+
+<div class="flex items-center justify-center p-24" style="min-height: 100vh;">
+    <div style="width: 100%; max-width: 400px;">
+        
+        <div class="mb-48" style="text-align: center;">
+            <h1 class="text-h1 mb-8">@(_isRegister ? "Create account" : "Sign in")</h1>
+            <p class="text-body text-secondary">
+                @(_isRegister ? "Join GradLink to find your next opportunity." : "Access your GradLink account.")
+            </p>
+        </div>
+
+        <AppCard Padding="true">
+            @if (_errorMessage != null)
+            {
+                <div class="mb-24 p-16 text-body color-danger" style="background-color: rgba(255,59,48,0.1); border-radius: var(--radius-md);">
+                    @_errorMessage
+                </div>
+            }
+
+            @if (_isRegister)
+            {
+                <div class="mb-24">
+                    <label class="app-label">I am a</label>
+                    <div class="flex gap-16">
+                        <AppCard Hoverable="true" 
+                                 Padding="false" 
+                                 CssClass="flex-1"
+                                 Style="@(_selectedRole == "Graduate" ? "border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-tint);" : "")"
+                                 OnClick='() => SelectRole("Graduate")'>
+                            <div class="flex flex-col items-center justify-center p-24 gap-8" style="color: @(_selectedRole == "Graduate" ? "var(--color-accent)" : "var(--color-text-primary)");">
+                                <Icon Name="user" Size="24" />
+                                <span class="text-label">Graduate</span>
+                            </div>
+                        </AppCard>
+
+                        <AppCard Hoverable="true" 
+                                 Padding="false" 
+                                 CssClass="flex-1"
+                                 Style="@(_selectedRole == "Employer" ? "border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-tint);" : "")"
+                                 OnClick='() => SelectRole("Employer")'>
+                            <div class="flex flex-col items-center justify-center p-24 gap-8" style="color: @(_selectedRole == "Employer" ? "var(--color-accent)" : "var(--color-text-primary)");">
+                                <Icon Name="building" Size="24" />
+                                <span class="text-label">Employer</span>
+                            </div>
+                        </AppCard>
+                    </div>
+                </div>
+            }
+
+            <form class="flex flex-col gap-16" @onsubmit="HandleSubmit">
+                @if (_isRegister)
+                {
+                    <div>
+                        <label class="app-label">Full name</label>
+                        <input type="text" class="app-input" placeholder="e.g. Jane Doe" @bind="_name" required />
+                    </div>
+                }
+
+                <div>
+                    <label class="app-label">Email address</label>
+                    <input type="email" class="app-input" placeholder="name@example.com" @bind="_email" required />
+                </div>
+                
+                <div>
+                    <label class="app-label">Password</label>
+                    <input type="password" class="app-input" @bind="_password" required />
+                </div>
+
+                <div class="mt-24">
+                    <AppButton Type="submit" Variant="primary" IsFullWidth="true" IsLoading="_isLoading">
+                        @(_isRegister ? "Create account" : "Sign in")
+                    </AppButton>
+                </div>
+            </form>
+        </AppCard>
+
+        <div class="mt-32" style="text-align: center;">
+            <button class="app-btn app-btn-ghost" @onclick="ToggleMode">
+                @(_isRegister ? "Already have an account? Sign in" : "Don't have an account? Create one")
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private bool _isRegister = false;
+    private bool _isLoading = false;
+    private string _selectedRole = "Graduate";
+    private string _name = "";
+    private string _email = "";
+    private string _password = "";
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.Uri;
+        if (uri.Contains("/register"))
+        {
+            _isRegister = true;
+        }
+    }
+
+    private void ToggleMode()
+    {
+        _isRegister = !_isRegister;
+        _name = "";
+        _email = "";
+        _password = "";
+        _errorMessage = null;
+    }
+
+    private void SelectRole(string role)
+    {
+        _selectedRole = role;
+    }
+
+    private async Task HandleSubmit()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+        
+        try
+        {
+            if (_isRegister)
+            {
+                var registerModel = new RegisterDto 
+                { 
+                    Email = _email, 
+                    Password = _password,
+                    FullName = _name,
+                    Role = _selectedRole == "Employer" ? UserRole.Employer : UserRole.Graduate,
+                    CompanyName = _selectedRole == "Employer" ? _name : null
+                };
+                
+                var regResult = await Api.RegisterAsync(registerModel);
+                if (regResult == null || !regResult.Success)
+                {
+                    _errorMessage = regResult?.Message ?? "Registration failed.";
+                    return;
+                }
+            }
+
+            var model = new LoginDto { Email = _email, Password = _password };
+            var result = await Api.LoginAsync(model);
+            if (result != null && result.Success)
+            {
+                await LocalStorage.SetItemAsync("authToken", result.Token!);
+                ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserAuthentication(result.Token!);
+                
+                var state = await AuthStateProvider.GetAuthenticationStateAsync();
+                var isEmployer = state.User.IsInRole("Employer");
+                
+                if (isEmployer)
+                    Navigation.NavigateTo("/employer/dashboard");
+                else
+                    Navigation.NavigateTo("/graduate/dashboard");
+            }
+            else
+            {
+                _errorMessage = result?.Message ?? "Invalid email or password.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "An error occurred during login. " + ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

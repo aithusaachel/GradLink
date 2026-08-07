@@ -1,0 +1,92 @@
+@page "/"
+@page "/design-system"
+
+<div class="p-48">
+    <div class="mb-48">
+        <h1 class="text-h1 mb-8">Design System</h1>
+        <p class="text-body text-secondary">Phase 0: Base Components Verification</p>
+    </div>
+
+    <!-- Buttons -->
+    <section class="mb-64">
+        <h2 class="text-h2 mb-24">Buttons</h2>
+        <div class="flex gap-16 items-center flex-wrap">
+            <AppButton Variant="primary">Primary Button</AppButton>
+            <AppButton Variant="secondary">Secondary Button</AppButton>
+            <AppButton Variant="danger">Danger Button</AppButton>
+            <AppButton Variant="ghost">Ghost Button</AppButton>
+            <AppButton Variant="primary" IsDisabled="true">Disabled</AppButton>
+            <AppButton Variant="primary" IsLoading="true">Loading</AppButton>
+            <AppButton Variant="secondary"><Icon Name="upload" Size="16" /> With Icon</AppButton>
+        </div>
+    </section>
+
+    <!-- Badges -->
+    <section class="mb-64">
+        <h2 class="text-h2 mb-24">Badges</h2>
+        <div class="flex gap-16 items-center flex-wrap">
+            <AppBadge Status="neutral" Text="Draft" />
+            <AppBadge Status="success" Text="Accepted" />
+            <AppBadge Status="warning" Text="Action Required" />
+            <AppBadge Status="danger" Text="Rejected" />
+            <AppBadge Status="accent" Text="Shortlisted" />
+        </div>
+    </section>
+
+    <!-- Cards -->
+    <section class="mb-64">
+        <h2 class="text-h2 mb-24">Cards & Shadows</h2>
+        <div class="flex gap-24">
+            <AppCard CssClass="flex-1" Hoverable="true">
+                <h3 class="text-h3 mb-8">Hoverable Card</h3>
+                <p class="text-body text-secondary">This card raises and uses the raised shadow on hover, demonstrating the --ease-standard motion token.</p>
+            </AppCard>
+            <AppCard CssClass="flex-1">
+                <h3 class="text-h3 mb-8">Static Card</h3>
+                <p class="text-body text-secondary">This card uses the standard resting shadow and does not respond to hover.</p>
+            </AppCard>
+        </div>
+    </section>
+
+    <!-- Typography Scale -->
+    <section class="mb-64">
+        <h2 class="text-h2 mb-24">Typography Scale</h2>
+        <div class="flex flex-col gap-16">
+            <div><span class="text-display">Display 56/60</span></div>
+            <div><span class="text-h1">Heading 1 40/46</span></div>
+            <div><span class="text-h2">Heading 2 28/34</span></div>
+            <div><span class="text-h3">Heading 3 22/28</span></div>
+            <div><span class="text-body">Body 17/26 (Default)</span></div>
+            <div><span class="text-label">Label 15/20</span></div>
+            <div><span class="text-body-sm">Body Small 15/22</span></div>
+            <div><span class="text-caption">Caption 13/18</span></div>
+        </div>
+    </section>
+
+    <!-- Icons -->
+    <section class="mb-64">
+        <h2 class="text-h2 mb-24">Iconography (Stroke 1.5, 24x24)</h2>
+        <div class="flex gap-16 flex-wrap" style="color: var(--color-text-secondary);">
+            <Icon Name="bell" />
+            <Icon Name="briefcase" />
+            <Icon Name="search" />
+            <Icon Name="filter" />
+            <Icon Name="chevron-down" />
+            <Icon Name="chevron-right" />
+            <Icon Name="check" />
+            <Icon Name="x" />
+            <Icon Name="upload" />
+            <Icon Name="building" />
+            <Icon Name="user" />
+            <Icon Name="settings" />
+            <Icon Name="log-out" />
+            <Icon Name="plus" />
+            <Icon Name="trash" />
+            <Icon Name="edit" />
+            <Icon Name="mail" />
+            <Icon Name="clock" />
+            <Icon Name="map-pin" />
+            <Icon Name="star" />
+        </div>
+    </section>
+</div>

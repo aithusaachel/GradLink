@@ -1,0 +1,54 @@
+@page "/graduate/dashboard"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+
+@if (_isLoading)
+{
+    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+}
+else
+{
+    <div class="mb-64 mt-48">
+        <h1 class="text-display mb-8">@_stats?.TotalApplications</h1>
+        <p class="text-h3 color-secondary">Active applications</p>
+    </div>
+
+    <section>
+        <div class="flex items-center justify-between mb-24">
+            <h2 class="text-h2">Recent Postings</h2>
+            <a href="/graduate/jobs" style="color: var(--color-accent); font-weight: 500;">View all</a>
+        </div>
+
+        <div class="flex flex-col">
+            @if (_recentJobs != null)
+            {
+                foreach (var job in _recentJobs.Take(3))
+                {
+                    <a href="/graduate/jobs/@job.Id" class="ios-list-item">
+                        <div class="flex flex-col gap-8">
+                            <h3 class="text-h3">@job.Title</h3>
+                            <div class="flex items-center gap-16 color-secondary">
+                                <span class="flex items-center gap-4"><Icon Name="building" Size="16" /> @job.CompanyName</span>
+                                <span class="flex items-center gap-4"><Icon Name="map-pin" Size="16" /> @job.Location</span>
+                            </div>
+                        </div>
+                        <Icon Name="chevron-right" Size="20" CssClass="color-secondary" />
+                    </a>
+                }
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private bool _isLoading = true;
+    private DashboardStatsDto? _stats;
+    private List<JobListingDto>? _recentJobs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stats = await Api.GetDashboardStatsAsync();
+        _recentJobs = await Api.GetJobsAsync();
+        _isLoading = false;
+    }
+}

@@ -1,0 +1,124 @@
+@page "/employer/jobs/new"
+@layout GradLink.Client.Layout.AppLayout
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@using GradLink.Shared.DTOs
+@using GradLink.Shared.Enums
+
+<div class="mb-48 mt-48">
+    <a href="/employer/dashboard" class="flex items-center gap-8 color-secondary mb-32" style="display: inline-flex; text-decoration: none; transition: color var(--ease-standard);">
+        <Icon Name="chevron-right" Size="20" Style="transform: rotate(180deg);" />
+        <span class="text-label">Back to Dashboard</span>
+    </a>
+    <h1 class="text-display">Post a job</h1>
+</div>
+
+<div class="flex flex-col gap-32 mb-64" style="max-width: 600px;">
+    
+    @if (_errorMessage != null)
+    {
+        <div class="p-16 text-body color-danger" style="background-color: rgba(255,59,48,0.1); border-radius: var(--radius-md);">
+            @_errorMessage
+        </div>
+    }
+
+    <!-- Title -->
+    <div class="flex flex-col gap-8">
+        <label class="text-label">Job Title</label>
+        <input class="app-input" type="text" placeholder="e.g. Software Engineer, New Grad" @bind="_model.Title" />
+    </div>
+
+    <!-- Industry -->
+    <div class="flex flex-col gap-8">
+        <label class="text-label">Industry</label>
+        <input class="app-input" type="text" placeholder="e.g. Engineering, Design, Data Science" @bind="_model.Industry" />
+    </div>
+
+    <!-- Work Model Segmented Control -->
+    <div class="flex flex-col gap-8">
+        <label class="text-label">Work Model</label>
+        <div class="flex gap-16">
+            <AppCard Padding="true" Hoverable="true" 
+                     CssClass="@(_workModel == "On-site" ? "flex-1 text-center" : "flex-1 text-center")" 
+                     Style="@(_workModel == "On-site" ? "box-shadow: 0 0 0 2px var(--color-accent);" : "")"
+                     OnClick="@(() => _workModel = "On-site")">
+                On-site
+            </AppCard>
+            <AppCard Padding="true" Hoverable="true" 
+                     CssClass="@(_workModel == "Hybrid" ? "flex-1 text-center" : "flex-1 text-center")" 
+                     Style="@(_workModel == "Hybrid" ? "box-shadow: 0 0 0 2px var(--color-accent);" : "")"
+                     OnClick="@(() => _workModel = "Hybrid")">
+                Hybrid
+            </AppCard>
+            <AppCard Padding="true" Hoverable="true" 
+                     CssClass="@(_workModel == "Remote" ? "flex-1 text-center" : "flex-1 text-center")" 
+                     Style="@(_workModel == "Remote" ? "box-shadow: 0 0 0 2px var(--color-accent);" : "")"
+                     OnClick="@(() => _workModel = "Remote")">
+                Remote
+            </AppCard>
+        </div>
+    </div>
+
+    <!-- Location -->
+    <div class="flex flex-col gap-8">
+        <label class="text-label">Location</label>
+        <input class="app-input" type="text" placeholder="e.g. Cupertino, CA" disabled="@(_workModel == "Remote")" style="@(_workModel == "Remote" ? "opacity: 0.5; cursor: not-allowed;" : "")" @bind="_locationInput" />
+    </div>
+
+    <!-- Description -->
+    <div class="flex flex-col gap-8">
+        <label class="text-label">Job Description</label>
+        <textarea class="app-input" rows="8" style="height: auto; padding: 16px; resize: vertical;" placeholder="Describe the role, responsibilities, and requirements..." @bind="_model.Description"></textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-24 mt-32">
+        <AppButton Variant="primary" IsLoading="_isSaving" OnClick="Save">Post Job</AppButton>
+        <a href="/employer/dashboard" class="text-label color-secondary" style="text-decoration: none;">Cancel</a>
+    </div>
+
+</div>
+
+@code {
+    private CreateJobDto _model = new() { ExperienceLevel = ExperienceLevel.Entry };
+    private string _workModel = "On-site";
+    private string _locationInput = "";
+    private bool _isSaving = false;
+    private string? _errorMessage;
+
+    private async Task Save()
+    {
+        _errorMessage = null;
+        
+        if (string.IsNullOrWhiteSpace(_model.Title) || string.IsNullOrWhiteSpace(_model.Description))
+        {
+            _errorMessage = "Title and Description are required.";
+            return;
+        }
+
+        _isSaving = true;
+
+        _model.Location = _workModel == "Remote" ? "Remote" : _locationInput;
+        
+        try
+        {
+            var result = await Api.PostJobAsync(_model);
+            if (result != null)
+            {
+                Navigation.NavigateTo("/employer/dashboard");
+            }
+            else
+            {
+                _errorMessage = "Failed to post job. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Error posting job: " + ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

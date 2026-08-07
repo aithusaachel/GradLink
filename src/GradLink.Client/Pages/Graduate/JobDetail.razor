@@ -1,0 +1,66 @@
+@page "/graduate/jobs/{Id:int}"
+@layout GradLink.Client.Layout.AppLayout
+
+<div class="mb-64 mt-48">
+    <a href="/graduate/jobs" class="flex items-center gap-8 color-secondary mb-32" style="transition: color var(--ease-standard); display: inline-flex;">
+        <Icon Name="chevron-right" Size="20" Style="transform: rotate(180deg);" />
+        <span class="text-label">Back to jobs</span>
+    </a>
+
+    <h1 class="text-display mb-16">Software Engineer, New Grad</h1>
+    
+    <div class="flex items-center gap-24 color-secondary text-body mb-48 flex-wrap">
+        <span class="flex items-center gap-8"><Icon Name="building" Size="20" /> Apple</span>
+        <span class="flex items-center gap-8"><Icon Name="map-pin" Size="20" /> Cupertino, CA</span>
+        <span class="flex items-center gap-8"><Icon Name="briefcase" Size="20" /> Full-time</span>
+        <span class="flex items-center gap-8"><Icon Name="clock" Size="20" /> Posted 2 days ago</span>
+    </div>
+
+    <!-- Job Description (Lots of whitespace) -->
+    <div class="flex flex-col gap-48 text-body" style="line-height: 1.6; padding-bottom: 120px; max-width: 800px;">
+        <section>
+            <h2 class="text-h2 mb-16">About the role</h2>
+            <p>At Apple, we believe in creating products that enrich people’s lives. We are looking for a highly motivated Software Engineer to join our core infrastructure team. You will be responsible for building scalable systems that power millions of devices worldwide.</p>
+        </section>
+
+        <section>
+            <h2 class="text-h2 mb-16">Key Qualifications</h2>
+            <ul class="flex flex-col gap-16" style="padding-left: 24px; list-style-type: disc;">
+                <li>Experience with modern object-oriented languages (C#, Java, Swift).</li>
+                <li>Deep understanding of data structures and algorithms.</li>
+                <li>Strong communication skills and ability to work in a fast-paced environment.</li>
+                <li>Passion for quality and attention to detail.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2 class="text-h2 mb-16">Education & Experience</h2>
+            <p>BS, MS, or PhD in Computer Science, or equivalent practical experience.</p>
+        </section>
+    </div>
+</div>
+
+<!-- Sticky Apply Bar -->
+<div style="position: fixed; bottom: 0; left: 0; right: 0; background-color: var(--color-surface); border-top: 1px solid var(--color-border); padding: 24px 0; z-index: 10;">
+    <div class="flex items-center justify-between px-48" style="max-width: 1200px; margin: 0 auto; width: 100%;">
+        <div class="flex flex-col">
+            <span class="text-label">Software Engineer, New Grad</span>
+            <span class="text-body-sm color-secondary">Apple • Cupertino, CA</span>
+        </div>
+        <AppButton Variant="primary" IsLoading="_isApplying" OnClick="Apply">Apply now</AppButton>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool _isApplying = false;
+
+    private async Task Apply()
+    {
+        _isApplying = true;
+        await Task.Delay(1500); // Simulate network request
+        _isApplying = false;
+    }
+}

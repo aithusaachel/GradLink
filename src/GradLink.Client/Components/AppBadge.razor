@@ -1,0 +1,11 @@
+<span class="app-badge app-badge-@Status @CssClass" style="@Style">
+    @Text
+</span>
+
+
+@code {
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public string Status { get; set; } = "neutral"; // success, warning, danger, neutral, accent
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+}

@@ -1,0 +1,153 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.SignalR.Client
+@using GradLink.Shared.DTOs
+@inject GradLink.Client.Services.LocalStorageService LocalStorage
+@implements IAsyncDisposable
+
+<div class="flex flex-col" style="min-height: 100vh;">
+    <header class="flex items-center justify-between px-48" style="height: 64px; border-bottom: 1px solid var(--color-border); background-color: var(--color-surface); position: relative; z-index: 50;">
+        <div class="flex items-center gap-32">
+            <div class="text-h3 color-primary">GradLink</div>
+            
+            <nav class="flex gap-24">
+                <a href="/graduate/dashboard" class="@GetNavClass("/graduate/dashboard")" style="transition: color var(--ease-standard);">Dashboard</a>
+                <a href="/graduate/jobs" class="@GetNavClass("/graduate/jobs")" style="transition: color var(--ease-standard);">Jobs</a>
+                <a href="/graduate/applications" class="@GetNavClass("/graduate/applications")" style="transition: color var(--ease-standard);">Applications</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-16">
+            
+            <!-- Notifications Dropdown -->
+            <div style="position: relative;">
+                <button class="app-btn app-btn-ghost" style="padding: 0 8px; position: relative;" @onclick="ToggleNotifications">
+                    <Icon Name="bell" Size="20" />
+                    @if (_unreadCount > 0)
+                    {
+                        <span style="position: absolute; top: 4px; right: 8px; width: 8px; height: 8px; background-color: var(--color-accent); border-radius: 50%;"></span>
+                    }
+                </button>
+                
+                @if (_showNotifications)
+                {
+                    <div style="position: absolute; top: 100%; right: 0; margin-top: 8px; width: 320px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 100; overflow: hidden;">
+                        <div class="px-16 py-16" style="border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="text-h3">Notifications</h3>
+                            @if (_hubConnection?.State == HubConnectionState.Connected)
+                            {
+                                <span style="width: 6px; height: 6px; background-color: var(--color-success); border-radius: 50%;" title="Connected to Real-time API"></span>
+                            }
+                        </div>
+                        <div style="max-height: 400px; overflow-y: auto;" class="hide-scrollbar">
+                            @if (_notifications.Count == 0)
+                            {
+                                <div class="p-32 text-center text-body-sm color-secondary">No notifications yet.</div>
+                            }
+                            else
+                            {
+                                @foreach (var n in _notifications)
+                                {
+                                    <div class="p-16 flex items-start gap-16" style="border-bottom: 1px solid var(--color-border); background-color: @(n.IsRead ? "transparent" : "rgba(255,255,255,0.03)");">
+                                        <div class="flex items-center justify-center" style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--color-bg); flex-shrink: 0;">
+                                            <Icon Name="bell" Size="14" CssClass="color-accent" />
+                                        </div>
+                                        <div class="flex flex-col gap-4">
+                                            <span class="text-body-sm color-primary" style="line-height: 1.4;">@n.Message</span>
+                                            <span class="text-caption color-secondary">@n.CreatedAt.ToString("MMM dd, h:mm tt")</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <a href="/graduate/profile" class="@GetNavClass("/graduate/profile") flex items-center gap-8" style="transition: color var(--ease-standard);">
+                <Icon Name="user" Size="20" />
+                <span>Profile</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-1 p-48" style="max-width: 1200px; margin: 0 auto; width: 100%;">
+        @Body
+    </main>
+</div>
+
+@code {
+    private string GetNavClass(string href)
+    {
+        var current = Navigation.Uri;
+        var isActive = current.Contains(href, StringComparison.OrdinalIgnoreCase);
+        return isActive ? "text-label color-primary" : "text-body-sm color-secondary";
+    }
+
+    private HubConnection? _hubConnection;
+    private List<NotificationDto> _notifications = new();
+    private int _unreadCount => _notifications.Count(n => !n.IsRead);
+    private bool _showNotifications = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Mock existing unread notification so the red dot appears for visual verification
+        _notifications.Add(new NotificationDto 
+        { 
+            Message = "Your application for Software Engineer at Apple has been viewed by the employer.", 
+            CreatedAt = DateTime.Now.AddHours(-1), 
+            IsRead = false 
+        });
+        
+        _notifications.Add(new NotificationDto 
+        { 
+            Message = "Stripe has shortlisted you for the Product Designer role.", 
+            CreatedAt = DateTime.Now.AddDays(-2), 
+            IsRead = true 
+        });
+
+        try
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl("http://localhost:5150/hubs/notifications", options => 
+                {
+                    options.AccessTokenProvider = async () => await LocalStorage.GetItemAsync("authToken");
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<NotificationDto>("ReceiveNotification", (notification) =>
+            {
+                _notifications.Insert(0, notification);
+                InvokeAsync(StateHasChanged);
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Error: {ex.Message}");
+        }
+    }
+
+    private void ToggleNotifications()
+    {
+        _showNotifications = !_showNotifications;
+        if (_showNotifications)
+        {
+            // Mark as read when opened
+            foreach (var n in _notifications)
+            {
+                n.IsRead = true;
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
