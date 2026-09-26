@@ -143,7 +143,7 @@ public class ApiClient
     public async Task<List<ApplicationDto>?> GetGraduateApplicationsAsync()
     {
         await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<ApplicationDto>>("api/applications/graduate");
+        return await _http.GetFromJsonAsync<List<ApplicationDto>>("api/applications/my");
     }
 
     public async Task<ApplicationDto?> ApplyAsync(CreateApplicationDto dto)

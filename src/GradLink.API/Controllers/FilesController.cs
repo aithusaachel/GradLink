@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using GradLink.API.Data;
 
 namespace GradLink.API.Controllers;
@@ -64,6 +65,25 @@ public class FilesController : ControllerBase
     [HttpGet("cv/{userId}")]
     public async Task<IActionResult> DownloadCv(string userId)
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        if (currentUserId != userId && role != "Employer")
+        {
+            return Forbid();
+        }
+
+        if (role == "Employer")
+        {
+            var hasApplied = await _context.JobApplications
+                .AnyAsync(a => a.GraduateId == userId && a.JobListing.EmployerId == currentUserId);
+            
+            if (!hasApplied)
+            {
+                return Forbid();
+            }
+        }
+
         var user = await _context.Users.FindAsync(userId);
         if (user == null || string.IsNullOrEmpty(user.CvFilePath) || !System.IO.File.Exists(user.CvFilePath))
             return NotFound("CV not found.");

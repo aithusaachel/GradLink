@@ -83,8 +83,8 @@ public class AuthService
 
     private string GenerateJwtToken(ApplicationUser user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-            _configuration["Jwt:Key"] ?? "GradLinkSuperSecretKeyThatIsLongEnough2025!"));
+        var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
         var claims = new[]
         {
