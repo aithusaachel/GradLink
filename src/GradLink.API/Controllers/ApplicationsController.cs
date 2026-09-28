@@ -18,6 +18,7 @@ public class ApplicationsController : ControllerBase
         _applicationService = applicationService;
     }
 
+    [Authorize(Roles = "Graduate")]
     [HttpGet("my")]
     public async Task<IActionResult> GetMyApplications()
     {
@@ -26,6 +27,7 @@ public class ApplicationsController : ControllerBase
         return Ok(apps);
     }
 
+    [Authorize(Roles = "Employer")]
     [HttpGet("job/{jobId}")]
     public async Task<IActionResult> GetJobApplicants(int jobId)
     {
@@ -34,6 +36,7 @@ public class ApplicationsController : ControllerBase
         return Ok(apps);
     }
 
+    [Authorize(Roles = "Graduate")]
     [HttpPost]
     public async Task<IActionResult> Apply([FromBody] CreateApplicationDto dto)
     {
@@ -43,6 +46,7 @@ public class ApplicationsController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Employer")]
     [HttpPut("status")]
     public async Task<IActionResult> UpdateStatus([FromBody] UpdateApplicationStatusDto dto)
     {
@@ -52,6 +56,7 @@ public class ApplicationsController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Graduate")]
     [HttpGet("stats/graduate")]
     public async Task<IActionResult> GetGraduateStats()
     {
@@ -60,6 +65,7 @@ public class ApplicationsController : ControllerBase
         return Ok(stats);
     }
 
+    [Authorize(Roles = "Employer")]
     [HttpGet("stats/employer")]
     public async Task<IActionResult> GetEmployerStats()
     {

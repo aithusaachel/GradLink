@@ -24,7 +24,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         try
         {
             var claims = ParseClaimsFromJwt(token);
-            var identity = new ClaimsIdentity(claims, "jwt");
+            var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role);
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }
         catch
@@ -38,7 +38,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     public void NotifyUserAuthentication(string token)
     {
         var claims = ParseClaimsFromJwt(token);
-        var identity = new ClaimsIdentity(claims, "jwt");
+        var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role);
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
@@ -52,7 +52,10 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
         var claims = new List<Claim>();
-        var payload = jwt.Split('.')[1];
+        var parts = jwt.Split('.');
+        if (parts.Length < 2) return claims;
+
+        var payload = parts[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
         var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
 
@@ -62,11 +65,18 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             {
                 var val = kvp.Value.ToString() ?? string.Empty;
                 claims.Add(new Claim(kvp.Key, val));
-                if (kvp.Key == "role")
+
+                if (string.Equals(kvp.Key, "role", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(kvp.Key, ClaimTypes.Role, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(kvp.Key, "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", StringComparison.OrdinalIgnoreCase))
                 {
                     claims.Add(new Claim(ClaimTypes.Role, val));
                 }
-                if (kvp.Key == "nameid")
+
+                if (string.Equals(kvp.Key, "nameid", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(kvp.Key, "sub", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(kvp.Key, ClaimTypes.NameIdentifier, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(kvp.Key, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", StringComparison.OrdinalIgnoreCase))
                 {
                     claims.Add(new Claim(ClaimTypes.NameIdentifier, val));
                 }

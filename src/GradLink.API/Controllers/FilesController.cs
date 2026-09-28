@@ -21,6 +21,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpPost("cv")]
+    [Authorize(Roles = "Graduate")]
     public async Task<IActionResult> UploadCv(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -34,8 +35,11 @@ public class FilesController : ControllerBase
         if (!allowedExtensions.Contains(extension))
             return BadRequest("Only PDF and Word documents are allowed.");
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "CVs");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var uploadsDir = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "Uploads", "CVs"));
         Directory.CreateDirectory(uploadsDir);
 
         var fileName = $"{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
@@ -53,7 +57,11 @@ public class FilesController : ControllerBase
             // Delete old CV if exists
             if (!string.IsNullOrEmpty(user.CvFilePath) && System.IO.File.Exists(user.CvFilePath))
             {
-                System.IO.File.Delete(user.CvFilePath);
+                var oldFullPath = Path.GetFullPath(user.CvFilePath);
+                if (oldFullPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    System.IO.File.Delete(user.CvFilePath);
+                }
             }
             user.CvFilePath = filePath;
             await _context.SaveChangesAsync();
@@ -65,16 +73,20 @@ public class FilesController : ControllerBase
     [HttpGet("cv/{userId}")]
     public async Task<IActionResult> DownloadCv(string userId)
     {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var role = User.FindFirstValue(ClaimTypes.Role);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId))
+            return Unauthorized();
 
-        if (currentUserId != userId && role != "Employer")
-        {
-            return Forbid();
-        }
+        var isEmployer = User.IsInRole("Employer") || User.FindFirstValue(ClaimTypes.Role) == "Employer";
+        var isOwner = string.Equals(currentUserId, userId, StringComparison.Ordinal);
 
-        if (role == "Employer")
+        if (!isOwner)
         {
+            if (!isEmployer)
+            {
+                return Forbid();
+            }
+
             var hasApplied = await _context.JobApplications
                 .AnyAsync(a => a.GraduateId == userId && a.JobListing.EmployerId == currentUserId);
             
@@ -85,11 +97,17 @@ public class FilesController : ControllerBase
         }
 
         var user = await _context.Users.FindAsync(userId);
-        if (user == null || string.IsNullOrEmpty(user.CvFilePath) || !System.IO.File.Exists(user.CvFilePath))
+        if (user == null || string.IsNullOrEmpty(user.CvFilePath))
             return NotFound("CV not found.");
 
-        var fileBytes = await System.IO.File.ReadAllBytesAsync(user.CvFilePath);
-        var extension = Path.GetExtension(user.CvFilePath);
+        var uploadsDir = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "Uploads", "CVs"));
+        var fullCvPath = Path.GetFullPath(user.CvFilePath);
+
+        if (!fullCvPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(fullCvPath))
+            return NotFound("CV file not found or inaccessible.");
+
+        var fileBytes = await System.IO.File.ReadAllBytesAsync(fullCvPath);
+        var extension = Path.GetExtension(fullCvPath);
         var contentType = extension switch
         {
             ".pdf" => "application/pdf",

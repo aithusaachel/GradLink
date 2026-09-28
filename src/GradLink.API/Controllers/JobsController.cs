@@ -37,7 +37,7 @@ public class JobsController : ControllerBase
         return Ok(job);
     }
 
-    [Authorize]
+    [Authorize(Roles = "Employer")]
     [HttpGet("employer")]
     public async Task<IActionResult> GetEmployerJobs()
     {
@@ -46,7 +46,7 @@ public class JobsController : ControllerBase
         return Ok(jobs);
     }
 
-    [Authorize]
+    [Authorize(Roles = "Employer")]
     [HttpPost]
     public async Task<IActionResult> CreateJob([FromBody] CreateJobDto dto)
     {
@@ -55,7 +55,7 @@ public class JobsController : ControllerBase
         return CreatedAtAction(nameof(GetJob), new { id = job.Id }, job);
     }
 
-    [Authorize]
+    [Authorize(Roles = "Employer")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateJob(int id, [FromBody] CreateJobDto dto)
     {
@@ -65,7 +65,7 @@ public class JobsController : ControllerBase
         return Ok(job);
     }
 
-    [Authorize]
+    [Authorize(Roles = "Employer")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJob(int id)
     {

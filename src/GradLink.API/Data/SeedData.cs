@@ -52,11 +52,25 @@ public static class SeedData
             EmailConfirmed = true
         };
 
-        await userManager.CreateAsync(employer1, "Employer@123");
-        await userManager.CreateAsync(employer2, "Employer@123");
-        await userManager.CreateAsync(employer3, "Employer@123");
+        await userManager.CreateAsync(employer1, "Password@123");
+        await userManager.CreateAsync(employer2, "Password@123");
+        await userManager.CreateAsync(employer3, "Password@123");
 
         // Create sample graduates
+        var graduateAlice = new ApplicationUser
+        {
+            UserName = "alice@gradlink.com",
+            Email = "alice@gradlink.com",
+            FullName = "Alice Johnson",
+            Role = UserRole.Graduate,
+            University = "University of Ghana",
+            Degree = "BSc Computer Science",
+            GraduationYear = 2025,
+            Skills = "C#, Blazor, ASP.NET Core, SQL, Git",
+            Bio = "Enthusiastic software engineer specializing in web application development.",
+            EmailConfirmed = true
+        };
+
         var graduate1 = new ApplicationUser
         {
             UserName = "john.doe@gradlink.com",
@@ -85,8 +99,9 @@ public static class SeedData
             EmailConfirmed = true
         };
 
-        await userManager.CreateAsync(graduate1, "Graduate@123");
-        await userManager.CreateAsync(graduate2, "Graduate@123");
+        await userManager.CreateAsync(graduateAlice, "Password@123");
+        await userManager.CreateAsync(graduate1, "Password@123");
+        await userManager.CreateAsync(graduate2, "Password@123");
 
         // Retrieve created users (to get their IDs)
         employer1 = await userManager.FindByEmailAsync("techcorp@gradlink.com") ?? employer1;

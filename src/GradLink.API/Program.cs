@@ -46,7 +46,8 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "GradLink",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "GradLinkUsers",
         IssuerSigningKey = key,
-        NameClaimType = ClaimTypes.NameIdentifier
+        NameClaimType = ClaimTypes.NameIdentifier,
+        RoleClaimType = ClaimTypes.Role
     };
 
     // Allow SignalR to receive token from query string
@@ -78,9 +79,6 @@ builder.Services.AddSignalR();
 // Add Controllers
 builder.Services.AddControllers();
 
-// Add OpenAPI
-builder.Services.AddOpenApi();
-
 // CORS - allow the Blazor client
 builder.Services.AddCors(options =>
 {
@@ -106,11 +104,6 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     await SeedData.Initialize(scope.ServiceProvider);
-}
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
 }
 
 app.UseCors("AllowBlazorClient");

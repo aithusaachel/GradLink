@@ -23,10 +23,13 @@ public class ProfileController : ControllerBase
     [HttpGet("stats")]
     public async Task<IActionResult> GetDashboardStats()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var role = User.FindFirstValue(ClaimTypes.Role);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var isEmployer = User.IsInRole("Employer") || User.FindFirstValue(ClaimTypes.Role) == "Employer";
         
-        if (role == "Employer")
+        if (isEmployer)
         {
             var stats = await _applicationService.GetEmployerStatsAsync(userId);
             return Ok(stats);
@@ -38,6 +41,7 @@ public class ProfileController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "Graduate")]
     [HttpGet("graduate")]
     public async Task<IActionResult> GetGraduateProfile()
     {
@@ -47,6 +51,7 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [Authorize(Roles = "Graduate")]
     [HttpPut("graduate")]
     public async Task<IActionResult> UpdateGraduateProfile([FromBody] UpdateGraduateProfileDto dto)
     {
@@ -56,6 +61,7 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [Authorize(Roles = "Employer")]
     [HttpGet("employer")]
     public async Task<IActionResult> GetEmployerProfile()
     {
@@ -65,6 +71,7 @@ public class ProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [Authorize(Roles = "Employer")]
     [HttpPut("employer")]
     public async Task<IActionResult> UpdateEmployerProfile([FromBody] UpdateEmployerProfileDto dto)
     {
