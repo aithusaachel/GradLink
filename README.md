@@ -49,3 +49,11 @@ GradLink is a modern, full-stack web application designed to connect graduates w
 ## Sample Accounts (Seeded Data)
 - **Graduate**: `alice@gradlink.com` / `Password@123`
 - **Employer**: `techcorp@gradlink.com` / `Password@123`
+
+The seed also creates sample applications and the notifications they would have produced. Seeding runs only against an empty database; delete `src/GradLink.API/gradlink.db` to reseed.
+
+## Running the Tests
+```bash
+dotnet test
+```
+The integration tests in `tests/GradLink.API.Tests` start the API in-process against a temporary SQLite database, so they don't need the API running and never touch `gradlink.db`.

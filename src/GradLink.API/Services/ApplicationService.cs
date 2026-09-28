@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.SignalR;
 using GradLink.API.Data;
-using GradLink.API.Hubs;
 using GradLink.Shared.DTOs;
 using GradLink.Shared.Enums;
 
@@ -10,12 +8,12 @@ namespace GradLink.API.Services;
 public class ApplicationService
 {
     private readonly GradLinkDbContext _context;
-    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly NotificationService _notifications;
 
-    public ApplicationService(GradLinkDbContext context, IHubContext<NotificationHub> hubContext)
+    public ApplicationService(GradLinkDbContext context, NotificationService notifications)
     {
         _context = context;
-        _hubContext = hubContext;
+        _notifications = notifications;
     }
 
     public async Task<List<ApplicationDto>> GetGraduateApplicationsAsync(string graduateId)
@@ -63,26 +61,22 @@ public class ApplicationService
 
         // Notify employer
         var graduate = await _context.Users.FindAsync(graduateId);
-        var notification = new Notification
-        {
-            UserId = job.EmployerId,
-            Message = $"New application from {graduate?.FullName ?? "a graduate"} for \"{job.Title}\"",
-            Type = NotificationType.ApplicationUpdate
-        };
-        _context.Notifications.Add(notification);
+        var notification = _notifications.Add(job.EmployerId,
+            NotificationMessages.NewApplication(graduate?.FullName ?? "a graduate", job.Title),
+            NotificationType.ApplicationUpdate);
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation())
+        {
+            // A concurrent duplicate can pass the existing-application check; the unique index rejects it here.
+            return null;
+        }
 
         // Send real-time notification
-        await _hubContext.Clients.Group(job.EmployerId)
-            .SendAsync("ReceiveNotification", new NotificationDto
-            {
-                Id = notification.Id,
-                Message = notification.Message,
-                IsRead = false,
-                CreatedAt = notification.CreatedAt,
-                Type = notification.Type
-            });
+        await _notifications.PublishAsync(notification);
 
         application.JobListing = job;
         application.Graduate = graduate!;
@@ -97,30 +91,19 @@ public class ApplicationService
             .FirstOrDefaultAsync(a => a.Id == dto.ApplicationId && a.JobListing.EmployerId == employerId);
 
         if (application == null) return null;
+        if (application.Status == dto.NewStatus) return MapToDto(application);
 
         application.Status = dto.NewStatus;
 
         // Notify graduate
-        var notification = new Notification
-        {
-            UserId = application.GraduateId,
-            Message = $"Your application for \"{application.JobListing.Title}\" has been updated to: {dto.NewStatus}",
-            Type = NotificationType.ApplicationUpdate
-        };
-        _context.Notifications.Add(notification);
+        var notification = _notifications.Add(application.GraduateId,
+            NotificationMessages.StatusChanged(application.JobListing.Title, dto.NewStatus),
+            NotificationType.ApplicationUpdate);
 
         await _context.SaveChangesAsync();
 
         // Send real-time notification
-        await _hubContext.Clients.Group(application.GraduateId)
-            .SendAsync("ReceiveNotification", new NotificationDto
-            {
-                Id = notification.Id,
-                Message = notification.Message,
-                IsRead = false,
-                CreatedAt = notification.CreatedAt,
-                Type = notification.Type
-            });
+        await _notifications.PublishAsync(notification);
 
         return MapToDto(application);
     }

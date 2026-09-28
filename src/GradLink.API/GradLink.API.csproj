@@ -20,6 +20,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.4.0" />
+
+    <!-- Pinned above the transitively resolved versions, which carry published security advisories. -->
+    <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.14" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 
   <ItemGroup>

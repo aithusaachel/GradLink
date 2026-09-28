@@ -11,6 +11,11 @@ public class GradLinkDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -66,6 +71,7 @@ public class GradLinkDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(n => new { n.UserId, n.IsRead });
+            entity.HasIndex(n => new { n.UserId, n.CreatedAt });
         });
 
         // ApplicationUser configuration
