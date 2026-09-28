@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +19,12 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetNotifications()
+    public async Task<IActionResult> GetNotifications(
+        [FromQuery, Range(0, int.MaxValue)] int skip = 0,
+        [FromQuery, Range(1, NotificationService.MaxPageSize)] int take = NotificationService.DefaultPageSize)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+        var notifications = await _notificationService.GetUserNotificationsAsync(userId, skip, take);
         return Ok(notifications);
     }
 

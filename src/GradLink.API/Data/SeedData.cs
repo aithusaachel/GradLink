@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using GradLink.API.Services;
 using GradLink.Shared.Enums;
 
 namespace GradLink.API.Data;
@@ -12,7 +14,9 @@ public static class SeedData
 
         await context.Database.EnsureCreatedAsync();
 
-        if (context.JobListings.Any()) return;
+        if (await context.Users.AnyAsync()) return;
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var employer1 = new ApplicationUser
         {
@@ -21,6 +25,7 @@ public static class SeedData
             FullName = "TechCorp HR",
             Role = UserRole.Employer,
             CompanyName = "TechCorp Solutions",
+            Industry = "Technology",
             CompanyDescription = "A leading technology company specialising in cloud solutions and enterprise software development. We empower businesses through innovative digital transformation strategies.",
             Website = "https://techcorp.example.com",
             EmailConfirmed = true
@@ -52,9 +57,9 @@ public static class SeedData
             EmailConfirmed = true
         };
 
-        await userManager.CreateAsync(employer1, "Password@123");
-        await userManager.CreateAsync(employer2, "Password@123");
-        await userManager.CreateAsync(employer3, "Password@123");
+        await CreateUserAsync(userManager, employer1, "Password@123");
+        await CreateUserAsync(userManager, employer2, "Password@123");
+        await CreateUserAsync(userManager, employer3, "Password@123");
 
         // Create sample graduates
         var graduateAlice = new ApplicationUser
@@ -99,15 +104,9 @@ public static class SeedData
             EmailConfirmed = true
         };
 
-        await userManager.CreateAsync(graduateAlice, "Password@123");
-        await userManager.CreateAsync(graduate1, "Password@123");
-        await userManager.CreateAsync(graduate2, "Password@123");
-
-        // Retrieve created users (to get their IDs)
-        employer1 = await userManager.FindByEmailAsync("techcorp@gradlink.com") ?? employer1;
-        employer2 = await userManager.FindByEmailAsync("greenfinance@gradlink.com") ?? employer2;
-        employer3 = await userManager.FindByEmailAsync("healthplus@gradlink.com") ?? employer3;
-        graduate1 = await userManager.FindByEmailAsync("john.doe@gradlink.com") ?? graduate1;
+        await CreateUserAsync(userManager, graduateAlice, "Password@123");
+        await CreateUserAsync(userManager, graduate1, "Password@123");
+        await CreateUserAsync(userManager, graduate2, "Password@123");
 
         // Create sample job listings
         var jobs = new List<JobListing>
@@ -190,31 +189,64 @@ public static class SeedData
         await context.SaveChangesAsync();
 
         // Create sample applications
-        var jobList = context.JobListings.ToList();
-        if (jobList.Count >= 2)
+        var applications = new List<JobApplication>
         {
-            var applications = new List<JobApplication>
+            new()
             {
-                new()
-                {
-                    JobListingId = jobList[0].Id,
-                    GraduateId = graduate1.Id,
-                    Status = ApplicationStatus.Reviewed,
-                    AppliedDate = DateTime.UtcNow.AddDays(-4),
-                    CoverLetter = "I am very excited about this Junior Software Developer position. With my background in Computer Science and hands-on experience with C# and web development, I believe I would be a great fit for your team."
-                },
-                new()
-                {
-                    JobListingId = jobList[4].Id,
-                    GraduateId = graduate1.Id,
-                    Status = ApplicationStatus.Pending,
-                    AppliedDate = DateTime.UtcNow.AddDays(-1),
-                    CoverLetter = "I am interested in the Health Data Analyst role. My skills in Python and SQL, combined with my passion for technology in healthcare, make me a strong candidate."
-                }
-            };
+                JobListingId = jobs[0].Id,
+                GraduateId = graduate1.Id,
+                Status = ApplicationStatus.Reviewed,
+                AppliedDate = DateTime.UtcNow.AddDays(-4),
+                CoverLetter = "I am very excited about this Junior Software Developer position. With my background in Computer Science and hands-on experience with C# and web development, I believe I would be a great fit for your team."
+            },
+            new()
+            {
+                JobListingId = jobs[4].Id,
+                GraduateId = graduate1.Id,
+                Status = ApplicationStatus.Pending,
+                AppliedDate = DateTime.UtcNow.AddDays(-1),
+                CoverLetter = "I am interested in the Health Data Analyst role. My skills in Python and SQL, combined with my passion for technology in healthcare, make me a strong candidate."
+            }
+        };
 
-            context.JobApplications.AddRange(applications);
-            await context.SaveChangesAsync();
+        context.JobApplications.AddRange(applications);
+
+        // The history the sample applications would have produced
+        context.Notifications.AddRange(
+            new Notification
+            {
+                UserId = employer1.Id,
+                Message = NotificationMessages.NewApplication(graduate1.FullName, jobs[0].Title),
+                Type = NotificationType.ApplicationUpdate,
+                CreatedAt = applications[0].AppliedDate,
+                IsRead = true
+            },
+            new Notification
+            {
+                UserId = graduate1.Id,
+                Message = NotificationMessages.StatusChanged(jobs[0].Title, applications[0].Status),
+                Type = NotificationType.ApplicationUpdate,
+                CreatedAt = applications[0].AppliedDate.AddDays(1)
+            },
+            new Notification
+            {
+                UserId = employer3.Id,
+                Message = NotificationMessages.NewApplication(graduate1.FullName, jobs[4].Title),
+                Type = NotificationType.ApplicationUpdate,
+                CreatedAt = applications[1].AppliedDate
+            });
+
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    private static async Task CreateUserAsync(UserManager<ApplicationUser> userManager, ApplicationUser user, string password)
+    {
+        var result = await userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Seeding user '{user.Email}' failed: {errors}");
         }
     }
 }

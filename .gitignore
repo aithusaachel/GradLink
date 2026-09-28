@@ -492,3 +492,4 @@ strip_comments.cs
 
 # Uploads/Media
 wwwroot/uploads/
+src/GradLink.API/Uploads/

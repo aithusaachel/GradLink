@@ -6,13 +6,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using GradLink.API.Data;
 using GradLink.API.Hubs;
+using GradLink.API.Infrastructure;
 using GradLink.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add SQLite database
-builder.Services.AddDbContext<GradLinkDbContext>(options =>
-    options.UseSqlite("Data Source=gradlink.db"));
+builder.Services.AddDbContext<GradLinkDbContext>((services, options) =>
+    options.UseSqlite(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing in configuration.")));
 
 // Add Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -79,6 +81,9 @@ builder.Services.AddSignalR();
 // Add Controllers
 builder.Services.AddControllers();
 
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 // CORS - allow the Blazor client
 builder.Services.AddCors(options =>
 {
@@ -106,6 +111,8 @@ using (var scope = app.Services.CreateScope())
     await SeedData.Initialize(scope.ServiceProvider);
 }
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseCors("AllowBlazorClient");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -113,3 +120,5 @@ app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
+
+public partial class Program { }

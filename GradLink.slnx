@@ -4,4 +4,7 @@
     <Project Path="src/GradLink.Client/GradLink.Client.csproj" />
     <Project Path="src/GradLink.Shared/GradLink.Shared.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GradLink.API.Tests/GradLink.API.Tests.csproj" />
+  </Folder>
 </Solution>

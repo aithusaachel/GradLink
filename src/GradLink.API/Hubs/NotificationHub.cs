@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace GradLink.API.Hubs;
 
 [Authorize]
-public class NotificationHub : Hub
+public class NotificationHub : Hub<INotificationClient>
 {
     public override async Task OnConnectedAsync()
     {
