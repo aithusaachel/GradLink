@@ -315,3 +315,28 @@ a { color: var(--color-accent); text-decoration: none; }
     gap: 16px;
     min-height: 200px;
 }
+/* Blazor sets display: block on this banner only when an unhandled exception occurs. */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 12px 48px 12px 20px;
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-danger);
+}
+
+#blazor-error-ui .reload {
+    margin-left: 8px;
+    text-decoration: underline;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    cursor: pointer;
+}

@@ -54,7 +54,7 @@ public sealed class HiringWorkflowTests(GradLinkApiFactory factory) : IClassFixt
         Assert.Empty(await scenario.Graduate.GetNotificationsAsync());
     }
 
-    [Fact(Skip = "Status updates accept values outside ApplicationStatus.")]
+    [Fact]
     public async Task Undefined_application_statuses_are_rejected()
     {
         var scenario = await factory.CreateApplicationAsync();

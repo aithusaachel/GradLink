@@ -51,23 +51,20 @@ public class ProfileService
 
     public async Task<EmployerProfileDto?> GetEmployerProfileAsync(string userId)
     {
-        var user = await _context.Users
-            .Include(u => u.JobListings)
-            .FirstOrDefaultAsync(u => u.Id == userId);
-
-        if (user == null) return null;
-
-        return new EmployerProfileDto
-        {
-            UserId = user.Id,
-            CompanyName = user.CompanyName ?? "",
-            Email = user.Email ?? "",
-            Industry = user.Industry,
-            Description = user.CompanyDescription,
-            Website = user.Website,
-            JobCount = user.JobListings.Count,
-            CreatedAt = user.CreatedAt
-        };
+        return await _context.Users
+            .Where(u => u.Id == userId)
+            .Select(u => new EmployerProfileDto
+            {
+                UserId = u.Id,
+                CompanyName = u.CompanyName ?? "",
+                Email = u.Email ?? "",
+                Industry = u.Industry,
+                Description = u.CompanyDescription,
+                Website = u.Website,
+                JobCount = u.JobListings.Count,
+                CreatedAt = u.CreatedAt
+            })
+            .FirstOrDefaultAsync();
     }
 
     public async Task<EmployerProfileDto?> UpdateEmployerProfileAsync(string userId, UpdateEmployerProfileDto dto)

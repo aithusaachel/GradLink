@@ -91,8 +91,7 @@ public class AuthService
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Email, user.Email ?? ""),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("role", user.Role.ToString())
+            new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

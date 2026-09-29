@@ -11,6 +11,15 @@ namespace GradLink.API.Controllers;
 [Authorize]
 public class FilesController : ControllerBase
 {
+    private const long MaxCvBytes = 5 * 1024 * 1024;
+
+    private static readonly Dictionary<string, string> CvContentTypes = new()
+    {
+        [".pdf"] = "application/pdf",
+        [".doc"] = "application/msword",
+        [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    };
+
     private readonly GradLinkDbContext _context;
     private readonly IWebHostEnvironment _env;
 
@@ -20,52 +29,45 @@ public class FilesController : ControllerBase
         _env = env;
     }
 
+    private string CvDirectory => Path.Combine(_env.ContentRootPath, "Uploads", "CVs");
+
+    // Only the stored file name is used, so a value can never point outside CvDirectory.
+    // Older rows stored an absolute path; those still resolve to the same file.
+    private string? ResolveCvPath(string? stored) =>
+        string.IsNullOrEmpty(stored) ? null : Path.Combine(CvDirectory, Path.GetFileName(stored));
+
     [HttpPost("cv")]
     [Authorize(Roles = "Graduate")]
     public async Task<IActionResult> UploadCv(IFormFile file)
     {
-        if (file == null || file.Length == 0)
+        if (file.Length == 0)
             return BadRequest("No file uploaded.");
 
-        if (file.Length > 5 * 1024 * 1024) // 5MB limit
+        if (file.Length > MaxCvBytes)
             return BadRequest("File size must be less than 5MB.");
 
-        var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
-        var extension = Path.GetExtension(file.FileName).ToLower();
-        if (!allowedExtensions.Contains(extension))
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!CvContentTypes.ContainsKey(extension))
             return BadRequest("Only PDF and Word documents are allowed.");
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
+        var user = await _context.Users.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        if (user == null)
             return Unauthorized();
 
-        var uploadsDir = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "Uploads", "CVs"));
-        Directory.CreateDirectory(uploadsDir);
-
-        var fileName = $"{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
-        var filePath = Path.Combine(uploadsDir, fileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        Directory.CreateDirectory(CvDirectory);
+        var fileName = $"{user.Id}_{Guid.NewGuid():N}{extension}";
+        await using (var stream = System.IO.File.Create(Path.Combine(CvDirectory, fileName)))
         {
             await file.CopyToAsync(stream);
         }
 
-        // Update user record
-        var user = await _context.Users.FindAsync(userId);
-        if (user != null)
-        {
-            // Delete old CV if exists
-            if (!string.IsNullOrEmpty(user.CvFilePath) && System.IO.File.Exists(user.CvFilePath))
-            {
-                var oldFullPath = Path.GetFullPath(user.CvFilePath);
-                if (oldFullPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase))
-                {
-                    System.IO.File.Delete(user.CvFilePath);
-                }
-            }
-            user.CvFilePath = filePath;
-            await _context.SaveChangesAsync();
-        }
+        // Only remove the old CV once the database points at the new one.
+        var previousPath = ResolveCvPath(user.CvFilePath);
+        user.CvFilePath = fileName;
+        await _context.SaveChangesAsync();
+
+        if (previousPath != null)
+            System.IO.File.Delete(previousPath);
 
         return Ok(new { message = "CV uploaded successfully.", fileName });
     }
@@ -74,48 +76,24 @@ public class FilesController : ControllerBase
     public async Task<IActionResult> DownloadCv(string userId)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(currentUserId))
-            return Unauthorized();
 
-        var isEmployer = User.IsInRole("Employer") || User.FindFirstValue(ClaimTypes.Role) == "Employer";
-        var isOwner = string.Equals(currentUserId, userId, StringComparison.Ordinal);
-
-        if (!isOwner)
+        // Graduates can fetch their own CV; employers only those of graduates who applied to them.
+        if (currentUserId != userId)
         {
-            if (!isEmployer)
-            {
-                return Forbid();
-            }
-
-            var hasApplied = await _context.JobApplications
+            var isApplicantsEmployer = User.IsInRole("Employer") && await _context.JobApplications
                 .AnyAsync(a => a.GraduateId == userId && a.JobListing.EmployerId == currentUserId);
-            
-            if (!hasApplied)
-            {
+
+            if (!isApplicantsEmployer)
                 return Forbid();
-            }
         }
 
         var user = await _context.Users.FindAsync(userId);
-        if (user == null || string.IsNullOrEmpty(user.CvFilePath))
+        var path = ResolveCvPath(user?.CvFilePath);
+        if (user == null || path == null || !System.IO.File.Exists(path))
             return NotFound("CV not found.");
 
-        var uploadsDir = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "Uploads", "CVs"));
-        var fullCvPath = Path.GetFullPath(user.CvFilePath);
-
-        if (!fullCvPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase) || !System.IO.File.Exists(fullCvPath))
-            return NotFound("CV file not found or inaccessible.");
-
-        var fileBytes = await System.IO.File.ReadAllBytesAsync(fullCvPath);
-        var extension = Path.GetExtension(fullCvPath);
-        var contentType = extension switch
-        {
-            ".pdf" => "application/pdf",
-            ".doc" => "application/msword",
-            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            _ => "application/octet-stream"
-        };
-
-        return File(fileBytes, contentType, $"{user.FullName}_CV{extension}");
+        var extension = Path.GetExtension(path);
+        var contentType = CvContentTypes.GetValueOrDefault(extension, "application/octet-stream");
+        return PhysicalFile(path, contentType, $"{user.FullName}_CV{extension}");
     }
 }

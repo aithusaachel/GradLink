@@ -18,7 +18,7 @@ GradLink is a modern, full-stack web application designed to connect graduates w
 ## Getting Started
 
 ### Prerequisites
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or newer
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or newer (opening `GradLink.slnx` needs SDK 9.0.200+ / Visual Studio 17.13+; with the .NET 8 SDK, build the projects directly)
 
 ### Setup
 1. Clone the repository.

@@ -14,7 +14,7 @@ public class RegisterDto
     [Required]
     public string FullName { get; set; } = string.Empty;
 
-    [Required]
+    [EnumDataType(typeof(UserRole))]
     public UserRole Role { get; set; }
 
     // Graduate-specific

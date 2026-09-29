@@ -90,16 +90,17 @@
     {
         _errorMessage = null;
         
-        if (string.IsNullOrWhiteSpace(_model.Title) || string.IsNullOrWhiteSpace(_model.Description))
+        _model.Location = _workModel == "Remote" ? "Remote" : _locationInput;
+
+        // Mirrors the [Required] fields on CreateJobDto, which the API rejects with a 400.
+        if (new[] { _model.Title, _model.Description, _model.Industry, _model.Location }.Any(string.IsNullOrWhiteSpace))
         {
-            _errorMessage = "Title and Description are required.";
+            _errorMessage = "Title, description, industry and location are required.";
             return;
         }
 
         _isSaving = true;
 
-        _model.Location = _workModel == "Remote" ? "Remote" : _locationInput;
-        
         try
         {
             var result = await Api.PostJobAsync(_model);

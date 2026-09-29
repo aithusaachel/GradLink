@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using GradLink.Shared.Enums;
 
 namespace GradLink.Shared.DTOs;
@@ -28,5 +29,7 @@ public class CreateApplicationDto
 public class UpdateApplicationStatusDto
 {
     public int ApplicationId { get; set; }
+
+    [EnumDataType(typeof(ApplicationStatus))]
     public ApplicationStatus NewStatus { get; set; }
 }
