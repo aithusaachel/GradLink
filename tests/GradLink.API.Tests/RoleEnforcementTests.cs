@@ -23,4 +23,18 @@ public sealed class RoleEnforcementTests(GradLinkApiFactory factory) : IClassFix
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Registration_rejects_undefined_roles()
+    {
+        var response = await factory.CreateClient().PostAsJsonAsync("api/auth/register", new
+        {
+            email = "undefined.role@test.gradlink",
+            password = ApiExtensions.Password,
+            fullName = "Undefined Role",
+            role = 7
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
