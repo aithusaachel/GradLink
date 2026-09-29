@@ -34,6 +34,7 @@ public class CreateJobDto
     [Required]
     public string Industry { get; set; } = string.Empty;
 
+    [EnumDataType(typeof(ExperienceLevel))]
     public ExperienceLevel ExperienceLevel { get; set; }
 
     public string? SalaryRange { get; set; }

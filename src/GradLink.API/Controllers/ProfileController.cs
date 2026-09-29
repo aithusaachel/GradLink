@@ -23,22 +23,11 @@ public class ProfileController : ControllerBase
     [HttpGet("stats")]
     public async Task<IActionResult> GetDashboardStats()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-
-        var isEmployer = User.IsInRole("Employer") || User.FindFirstValue(ClaimTypes.Role) == "Employer";
-        
-        if (isEmployer)
-        {
-            var stats = await _applicationService.GetEmployerStatsAsync(userId);
-            return Ok(stats);
-        }
-        else
-        {
-            var stats = await _applicationService.GetGraduateStatsAsync(userId);
-            return Ok(stats);
-        }
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var stats = User.IsInRole("Employer")
+            ? await _applicationService.GetEmployerStatsAsync(userId)
+            : await _applicationService.GetGraduateStatsAsync(userId);
+        return Ok(stats);
     }
 
     [Authorize(Roles = "Graduate")]
