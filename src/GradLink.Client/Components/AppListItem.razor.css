@@ -1,0 +1,74 @@
+.app-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    padding: 16px 18px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background-color: var(--color-surface);
+    transition: border-color 160ms var(--ease-standard), box-shadow 160ms var(--ease-standard), transform 160ms var(--ease-standard);
+}
+
+.app-list-item.clickable {
+    cursor: pointer;
+}
+
+.app-list-item.clickable:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-tint);
+}
+
+.app-list-item:active {
+    transform: translateY(1px);
+}
+
+.app-list-item-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex: 1;
+}
+
+.app-list-item-leading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.app-list-item-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.app-list-item-title {
+    font-size: 17px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.app-list-item-subtitle {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-text-secondary);
+}
+
+.app-list-item-trailing {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.app-list-item-trailing-text {
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}

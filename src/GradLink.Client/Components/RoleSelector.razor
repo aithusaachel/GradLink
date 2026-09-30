@@ -1,0 +1,45 @@
+@typeparam TValue
+
+<div class="role-selector @CssClass">
+    @foreach (var option in Options)
+    {
+        var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, Value);
+
+        <button type="button"
+                class="role-option @(isSelected ? "selected" : "")"
+                aria-pressed="@isSelected"
+                @onclick="() => Select(option.Value)">
+            <div class="role-option-inner">
+                @if (option.Icon is not null)
+                {
+                    <span class="role-option-icon">@option.Icon</span>
+                }
+
+                <span class="role-option-label">@option.Label</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(option.Description))
+            {
+                <span class="role-option-description">@option.Description</span>
+            }
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<RoleOption<TValue>> Options { get; set; } = new List<RoleOption<TValue>>();
+    [Parameter] public TValue Value { get; set; } = default!;
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private async Task Select(TValue selectedValue)
+    {
+        if (EqualityComparer<TValue>.Default.Equals(Value, selectedValue))
+        {
+            return;
+        }
+
+        Value = selectedValue;
+        await ValueChanged.InvokeAsync(selectedValue);
+    }
+}

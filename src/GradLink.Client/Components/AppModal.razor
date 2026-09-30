@@ -1,0 +1,57 @@
+@if (IsOpen)
+{
+    <div class="app-modal-backdrop" @onclick="Close">
+        <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" @onclick:stopPropagation>
+            @if (ShowHeader)
+            {
+                <div class="app-modal-header">
+                    <div class="app-modal-title-wrap">
+                        @if (!string.IsNullOrWhiteSpace(Title))
+                        {
+                            <h3 id="modal-title" class="app-modal-title">@Title</h3>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(SubTitle))
+                        {
+                            <p class="app-modal-subtitle">@SubTitle</p>
+                        }
+                    </div>
+
+                    @if (ShowCloseButton)
+                    {
+                        <button type="button" class="app-modal-close" aria-label="Close dialog" @onclick="Close">
+                            ×
+                        </button>
+                    }
+                </div>
+            }
+
+            <div class="app-modal-body">
+                @ChildContent
+            </div>
+
+            @if (Footer is not null)
+            {
+                <div class="app-modal-footer">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public bool ShowHeader { get; set; } = true;
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string SubTitle { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+}

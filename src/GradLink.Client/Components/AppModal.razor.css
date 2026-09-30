@@ -1,0 +1,83 @@
+.app-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(17, 17, 17, 0.42);
+    z-index: 1000;
+}
+
+.app-modal {
+    width: min(100%, 520px);
+    max-height: 90vh;
+    overflow: hidden;
+    border-radius: 18px;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-modal);
+}
+
+.app-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 20px 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.app-modal-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.app-modal-title {
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-text-primary);
+}
+
+.app-modal-subtitle {
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--color-text-secondary);
+}
+
+.app-modal-close {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 28px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 160ms var(--ease-standard), color 160ms var(--ease-standard);
+}
+
+.app-modal-close:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+}
+
+.app-modal-body {
+    padding: 20px;
+}
+
+.app-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 0 20px 20px;
+}

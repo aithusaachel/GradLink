@@ -1,0 +1,38 @@
+.app-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.app-badge-neutral {
+    background-color: var(--color-pending-tint);
+    color: var(--color-text-primary);
+}
+
+.app-badge-success {
+    background-color: var(--color-success-tint);
+    color: var(--color-success);
+}
+
+.app-badge-warning {
+    background-color: var(--color-warning-tint);
+    color: var(--color-warning);
+}
+
+.app-badge-danger {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger);
+}
+
+.app-badge-accent {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent);
+}

@@ -1,11 +1,20 @@
-<span class="app-badge app-badge-@Status @CssClass" style="@Style">
+<span class="app-badge app-badge-@NormalizedStatus @CssClass" style="@Style">
     @Text
 </span>
 
-
 @code {
     [Parameter] public string Text { get; set; } = "";
-    [Parameter] public string Status { get; set; } = "neutral"; // success, warning, danger, neutral, accent
+    [Parameter] public string Status { get; set; } = "neutral";
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public string Style { get; set; } = "";
+
+    private string NormalizedStatus => Status?.Trim().ToLowerInvariant() switch
+    {
+        "success" => "success",
+        "warning" => "warning",
+        "danger" => "danger",
+        "accent" => "accent",
+        "neutral" => "neutral",
+        _ => "neutral"
+    };
 }
