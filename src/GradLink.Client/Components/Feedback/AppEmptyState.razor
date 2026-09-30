@@ -1,0 +1,30 @@
+<div class="app-empty-state @CssClass" style="@Style">
+    @if (Icon is not null)
+    {
+        <div class="app-empty-state-icon">@Icon</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <h3 class="app-empty-state-title">@Title</h3>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="app-empty-state-description">@Description</p>
+    }
+
+    @if (ActionContent is not null)
+    {
+        <div class="app-empty-state-action">@ActionContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+}

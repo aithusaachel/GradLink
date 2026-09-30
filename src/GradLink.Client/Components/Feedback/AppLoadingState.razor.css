@@ -1,0 +1,39 @@
+.app-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    min-height: 180px;
+    width: 100%;
+    padding: 20px;
+}
+
+.app-loading-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(91, 79, 255, 0.18);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: app-loading-spin 0.9s linear infinite;
+}
+
+.app-loading-title {
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.app-loading-description {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-text-secondary);
+}
+
+@keyframes app-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
