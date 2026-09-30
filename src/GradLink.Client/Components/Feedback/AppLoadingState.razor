@@ -1,0 +1,24 @@
+<div class="app-loading-state @CssClass" style="@Style">
+    @if (ShowSpinner)
+    {
+        <div class="app-loading-spinner" aria-label="Loading"></div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <div class="app-loading-title">@Title</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <div class="app-loading-description">@Description</div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool ShowSpinner { get; set; } = true;
+    [Parameter] public string Title { get; set; } = "Loading";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+}

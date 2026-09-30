@@ -28,29 +28,10 @@
             {
                 <div class="mb-24">
                     <label class="app-label">I am a</label>
-                    <div class="flex gap-16">
-                        <AppCard Hoverable="true" 
-                                 Padding="false" 
-                                 CssClass="flex-1"
-                                 Style="@(_selectedRole == "Graduate" ? "border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-tint);" : "")"
-                                 OnClick='() => SelectRole("Graduate")'>
-                            <div class="flex flex-col items-center justify-center p-24 gap-8" style="color: @(_selectedRole == "Graduate" ? "var(--color-accent)" : "var(--color-text-primary)");">
-                                <Icon Name="user" Size="24" />
-                                <span class="text-label">Graduate</span>
-                            </div>
-                        </AppCard>
-
-                        <AppCard Hoverable="true" 
-                                 Padding="false" 
-                                 CssClass="flex-1"
-                                 Style="@(_selectedRole == "Employer" ? "border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent-tint);" : "")"
-                                 OnClick='() => SelectRole("Employer")'>
-                            <div class="flex flex-col items-center justify-center p-24 gap-8" style="color: @(_selectedRole == "Employer" ? "var(--color-accent)" : "var(--color-text-primary)");">
-                                <Icon Name="building" Size="24" />
-                                <span class="text-label">Employer</span>
-                            </div>
-                        </AppCard>
-                    </div>
+                    <RoleSelector TValue="string"
+                                  Value="_selectedRole"
+                                  ValueChanged="SelectRole"
+                                  Options="GetRoleOptions()" />
                 </div>
             }
 
@@ -120,6 +101,27 @@
     private void SelectRole(string role)
     {
         _selectedRole = role;
+    }
+
+    private List<RoleOption<string>> GetRoleOptions()
+    {
+        return new List<RoleOption<string>>
+        {
+            new()
+            {
+                Value = "Graduate",
+                Label = "Graduate",
+                Description = "Find roles and manage applications",
+                Icon = @<Icon Name="user" Size="22" />
+            },
+            new()
+            {
+                Value = "Employer",
+                Label = "Employer",
+                Description = "Post jobs and discover talent",
+                Icon = @<Icon Name="building" Size="22" />
+            }
+        };
     }
 
     private async Task HandleSubmit()

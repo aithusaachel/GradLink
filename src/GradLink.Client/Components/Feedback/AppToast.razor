@@ -1,0 +1,48 @@
+@if (IsVisible)
+{
+    <div class="app-toast app-toast-@Type @CssClass" role="status" aria-live="polite" style="@Style">
+        <div class="app-toast-content">
+            @if (Icon is not null)
+            {
+                <span class="app-toast-icon">@Icon</span>
+            }
+
+            <div class="app-toast-text">
+                @if (!string.IsNullOrWhiteSpace(Title))
+                {
+                    <div class="app-toast-title">@Title</div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <div class="app-toast-message">@Message</div>
+                }
+            </div>
+        </div>
+
+        @if (Closable)
+        {
+            <button type="button" class="app-toast-close" aria-label="Dismiss toast" @onclick="Close">×</button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Type { get; set; } = "info";
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public bool Closable { get; set; } = true;
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

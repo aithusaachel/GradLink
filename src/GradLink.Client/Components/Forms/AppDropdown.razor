@@ -1,0 +1,53 @@
+<div class="app-dropdown @CssClass" style="@Style">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="app-dropdown-label">@Label</label>
+    }
+
+    <div class="app-dropdown-control @(IsOpen ? "open" : "")" @onclick="ToggleOpen">
+        <span class="app-dropdown-value">@SelectedText</span>
+        <span class="app-dropdown-chevron">▾</span>
+    </div>
+
+    @if (IsOpen)
+    {
+        <div class="app-dropdown-menu" role="listbox">
+            @foreach (var option in Options)
+            {
+                var isSelected = option.Value.Equals(CurrentValue, StringComparison.Ordinal);
+
+                <button type="button"
+                        class="app-dropdown-option @(isSelected ? "selected" : "")"
+                        @onclick="() => Select(option)">
+                    @option.Text
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public List<AppDropdownOption> Options { get; set; } = new();
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private bool IsOpen { get; set; }
+
+    private string CurrentValue => Value;
+
+    private string SelectedText => Options.FirstOrDefault(o => o.Value.Equals(CurrentValue, StringComparison.Ordinal))?.Text ?? "Select an option";
+
+    private async Task ToggleOpen()
+    {
+        IsOpen = !IsOpen;
+    }
+
+    private async Task Select(AppDropdownOption option)
+    {
+        IsOpen = false;
+        await ValueChanged.InvokeAsync(option.Value);
+    }
+}

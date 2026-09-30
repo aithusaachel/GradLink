@@ -1,0 +1,30 @@
+<div class="app-error-state @CssClass" style="@Style">
+    @if (ShowIcon)
+    {
+        <div class="app-error-state-icon">!</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <h3 class="app-error-state-title">@Title</h3>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <p class="app-error-state-message">@Message</p>
+    }
+
+    @if (ActionContent is not null)
+    {
+        <div class="app-error-state-action">@ActionContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool ShowIcon { get; set; } = true;
+    [Parameter] public string Title { get; set; } = "Something went wrong";
+    [Parameter] public string Message { get; set; } = "Please try again.";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+}
