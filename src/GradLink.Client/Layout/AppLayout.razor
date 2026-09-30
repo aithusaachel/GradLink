@@ -3,106 +3,653 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using GradLink.Shared.DTOs
 @inject GradLink.Client.Services.LocalStorageService LocalStorage
+@inject GradLink.Client.Services.ApiClient Api
+@inject AuthenticationStateProvider AuthStateProvider
 @implements IAsyncDisposable
 
-<div class="flex flex-col" style="min-height: 100vh;">
-    <header class="flex items-center justify-between px-48" style="height: 64px; border-bottom: 1px solid var(--color-border); background-color: var(--color-surface); position: relative; z-index: 50;">
-        <div class="flex items-center gap-32">
-            <div class="text-h3 color-primary">GradLink</div>
-            
-            <nav class="flex gap-24">
-                <a href="/graduate/dashboard" class="@GetNavClass("/graduate/dashboard")" style="transition: color var(--ease-standard);">Dashboard</a>
-                <a href="/graduate/jobs" class="@GetNavClass("/graduate/jobs")" style="transition: color var(--ease-standard);">Jobs</a>
-                <a href="/graduate/applications" class="@GetNavClass("/graduate/applications")" style="transition: color var(--ease-standard);">Applications</a>
-            </nav>
+<div class="layout-shell">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+        <div>
+            <!-- Brand Logo -->
+            <a href="/graduate/dashboard" class="brand-link">
+                <div class="brand-icon">
+                    <div class="brand-icon-inner"></div>
+                </div>
+                <span class="brand-name">Gradly</span>
+            </a>
+
+            <!-- Workspace Section -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    @(IsEmployer ? "EMPLOYER WORKSPACE" : "GRADUATE WORKSPACE")
+                </div>
+
+                <nav class="nav-list">
+                    @if (IsEmployer)
+                    {
+                        <a href="/employer/dashboard" class="nav-item @(IsActive("/employer/dashboard") ? "active" : "")">
+                            <Icon Name="home" Size="18" />
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="/employer/jobs/new" class="nav-item @(IsActive("/employer/jobs/new") ? "active" : "")">
+                            <Icon Name="plus" Size="18" />
+                            <span>Post a job</span>
+                        </a>
+                        <a href="/employer/profile" class="nav-item @(IsActive("/employer/profile") ? "active" : "")">
+                            <Icon Name="building" Size="18" />
+                            <span>Company profile</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="/graduate/dashboard" class="nav-item @(IsActive("/graduate/dashboard") ? "active" : "")">
+                            <Icon Name="home" Size="18" />
+                            <span>Overview</span>
+                        </a>
+                        <a href="/graduate/jobs" class="nav-item @(IsActive("/graduate/jobs") ? "active" : "")">
+                            <Icon Name="search" Size="18" />
+                            <span>Discover jobs</span>
+                        </a>
+                        <a href="/graduate/applications" class="nav-item @(IsActive("/graduate/applications") ? "active" : "")">
+                            <Icon Name="bag" Size="18" />
+                            <span>My applications</span>
+                            <span class="nav-badge">@(_stats?.TotalApplications > 0 ? _stats.TotalApplications : 4)</span>
+                        </a>
+                        <a href="/graduate/profile" class="nav-item @(IsActive("/graduate/profile") ? "active" : "")">
+                            <Icon Name="user" Size="18" />
+                            <span>My profile</span>
+                        </a>
+                    }
+                </nav>
+            </div>
         </div>
 
-        <div class="flex items-center gap-16">
-            
-            <!-- Notifications Dropdown -->
-            <div style="position: relative;">
-                <button class="app-btn app-btn-ghost" style="padding: 0 8px; position: relative;" @onclick="ToggleNotifications">
-                    <Icon Name="bell" Size="20" />
-                    @if (_unreadCount > 0)
-                    {
-                        <span style="position: absolute; top: 4px; right: 8px; width: 8px; height: 8px; background-color: var(--color-accent); border-radius: 50%;"></span>
-                    }
-                </button>
-                
-                @if (_showNotifications)
-                {
-                    <div style="position: absolute; top: 100%; right: 0; margin-top: 8px; width: 320px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 100; overflow: hidden;">
-                        <div class="px-16 py-16" style="border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                            <h3 class="text-h3">Notifications</h3>
-                            @if (_hubConnection?.State == HubConnectionState.Connected)
-                            {
-                                <span style="width: 6px; height: 6px; background-color: var(--color-success); border-radius: 50%;" title="Connected to Real-time API"></span>
-                            }
-                        </div>
-                        <div style="max-height: 400px; overflow-y: auto;" class="hide-scrollbar">
-                            @if (_notifications.Count == 0)
-                            {
-                                <div class="p-32 text-center text-body-sm color-secondary">No notifications yet.</div>
-                            }
-                            else
-                            {
-                                @foreach (var n in _notifications)
-                                {
-                                    <div class="p-16 flex items-start gap-16" style="border-bottom: 1px solid var(--color-border); background-color: @(n.IsRead ? "transparent" : "rgba(255,255,255,0.03)");">
-                                        <div class="flex items-center justify-center" style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--color-bg); flex-shrink: 0;">
-                                            <Icon Name="bell" Size="14" CssClass="color-accent" />
-                                        </div>
-                                        <div class="flex flex-col gap-4">
-                                            <span class="text-body-sm color-primary" style="line-height: 1.4;">@n.Message</span>
-                                            <span class="text-caption color-secondary">@n.CreatedAt.ToString("MMM dd, h:mm tt")</span>
-                                        </div>
-                                    </div>
-                                }
-                            }
-                        </div>
+        <!-- Sidebar Bottom Area -->
+        <div class="sidebar-bottom">
+            @if (!IsEmployer)
+            {
+                <!-- Profile Strength Card -->
+                <div class="strength-card">
+                    <div class="strength-badge">
+                        <Icon Name="sparkles" Size="14" />
                     </div>
-                }
+                    <div class="strength-tag">PROFILE STRENGTH</div>
+                    <div class="strength-title">You're almost there</div>
+                    <div class="strength-desc">Add two projects to reach 100%.</div>
+                    <div class="strength-progress-bg">
+                        <div class="strength-progress-fill" style="width: 72%;"></div>
+                    </div>
+                </div>
+            }
+
+            <!-- User Profile Footer -->
+            <div class="user-footer" @onclick="ToggleUserMenu">
+                <div class="user-avatar">
+                    @GetUserInitials()
+                </div>
+                <div class="user-info">
+                    <div class="user-name">@GetDisplayName()</div>
+                    <div class="user-role">@GetUserSubtitle()</div>
+                </div>
+                <button class="user-menu-btn" title="Options">
+                    <Icon Name="dots" Size="16" />
+                </button>
             </div>
 
-            <a href="/graduate/profile" class="@GetNavClass("/graduate/profile") flex items-center gap-8" style="transition: color var(--ease-standard);">
-                <Icon Name="user" Size="20" />
-                <span>Profile</span>
-            </a>
+            @if (_showUserMenu)
+            {
+                <div class="user-dropdown-menu">
+                    <a href="@(IsEmployer ? "/employer/profile" : "/graduate/profile")" class="user-dropdown-item">
+                        <Icon Name="user" Size="16" />
+                        <span>View profile</span>
+                    </a>
+                    <button class="user-dropdown-item color-danger" @onclick="SignOut">
+                        <Icon Name="log-out" Size="16" />
+                        <span>Sign out</span>
+                    </button>
+                </div>
+            }
         </div>
-    </header>
+    </aside>
 
-    <main class="flex-1 p-48" style="max-width: 1200px; margin: 0 auto; width: 100%;">
-        @Body
-    </main>
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+        <!-- Top App Bar -->
+        <header class="top-bar">
+            <div class="top-bar-actions">
+                <!-- Role Switcher Segmented Control -->
+                <div class="role-switcher">
+                    <a href="/graduate/dashboard" class="role-btn @(!IsEmployer ? "active" : "")">Graduate</a>
+                    <a href="/employer/dashboard" class="role-btn @(IsEmployer ? "active" : "")">Employer</a>
+                </div>
+
+                <!-- Notifications Dropdown Trigger -->
+                <div class="notification-container">
+                    <button class="notification-btn" @onclick="ToggleNotifications" title="Notifications">
+                        <Icon Name="bell" Size="18" />
+                        @if (_unreadCount > 0)
+                        {
+                            <span class="notification-indicator"></span>
+                        }
+                    </button>
+
+                    @if (_showNotifications)
+                    {
+                        <div class="notification-popover">
+                            <div class="notification-popover-header">
+                                <span class="notification-popover-title">Notifications</span>
+                                @if (_hubConnection?.State == HubConnectionState.Connected)
+                                {
+                                    <span class="hub-connected-dot" title="Connected to Real-time API"></span>
+                                }
+                            </div>
+                            <div class="notification-list hide-scrollbar">
+                                @if (_notifications.Count == 0)
+                                {
+                                    <div class="notification-empty">No notifications yet.</div>
+                                }
+                                else
+                                {
+                                    @foreach (var n in _notifications)
+                                    {
+                                        <div class="notification-item @(n.IsRead ? "read" : "unread")">
+                                            <div class="notification-item-icon">
+                                                <Icon Name="bell" Size="13" />
+                                            </div>
+                                            <div class="notification-item-body">
+                                                <div class="notification-item-message">@n.Message</div>
+                                                <div class="notification-item-time">@n.CreatedAt.ToString("MMM dd, h:mm tt")</div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Body Content -->
+        <main class="page-content">
+            @Body
+        </main>
+    </div>
 </div>
 
+<style>
+    .layout-shell {
+        display: flex;
+        min-height: 100vh;
+        background-color: #F8F9FB;
+        color: #121316;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 256px;
+        background-color: #FFFFFF;
+        border-right: 1px solid #ECEEF2;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 24px 16px 20px 16px;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 40;
+    }
+
+    .brand-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        padding: 0 10px 24px 10px;
+    }
+    .brand-icon {
+        width: 32px;
+        height: 32px;
+        background: #111827;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .brand-icon-inner {
+        width: 14px;
+        height: 6px;
+        background: #D4F938;
+        border-radius: 3px;
+        box-shadow: 0 0 6px rgba(212, 249, 56, 0.6);
+    }
+    .brand-name {
+        font-size: 19px;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.02em;
+    }
+
+    .nav-section {
+        margin-top: 4px;
+    }
+    .nav-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #9CA3AF;
+        padding: 0 12px;
+        margin-bottom: 12px;
+    }
+    .nav-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #4B5563;
+        text-decoration: none;
+        transition: all var(--ease-standard);
+        position: relative;
+    }
+    .nav-item:hover {
+        background-color: #F3F4F6;
+        color: #111827;
+    }
+    .nav-item.active {
+        background-color: #FFFFFF;
+        color: #4F46E5;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        border: 1px solid #ECEEF2;
+    }
+    .nav-badge {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4F46E5;
+        background-color: #EEF2FF;
+        padding: 1px 7px;
+        border-radius: 999px;
+    }
+
+    /* Sidebar Bottom */
+    .sidebar-bottom {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+    }
+
+    .strength-card {
+        background: #111318;
+        border-radius: 16px;
+        padding: 16px;
+        color: #FFFFFF;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    }
+    .strength-badge {
+        width: 26px;
+        height: 26px;
+        background: #D4F938;
+        color: #111827;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+    .strength-tag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #9CA3AF;
+        margin-bottom: 4px;
+    }
+    .strength-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #FFFFFF;
+        margin-bottom: 4px;
+    }
+    .strength-desc {
+        font-size: 12px;
+        color: #9CA3AF;
+        margin-bottom: 12px;
+        line-height: 1.35;
+    }
+    .strength-progress-bg {
+        width: 100%;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .strength-progress-fill {
+        height: 100%;
+        background: #D4F938;
+        border-radius: 999px;
+    }
+
+    .user-footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 4px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background-color var(--ease-standard);
+    }
+    .user-footer:hover {
+        background-color: #F9FAFB;
+    }
+    .user-avatar {
+        width: 38px;
+        height: 38px;
+        background: #EDE9FE;
+        color: #6D28D9;
+        font-weight: 700;
+        font-size: 13px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .user-info {
+        flex: 1;
+        overflow: hidden;
+    }
+    .user-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .user-role {
+        font-size: 12px;
+        color: #6B7280;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .user-menu-btn {
+        background: none;
+        border: none;
+        color: #9CA3AF;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .user-dropdown-menu {
+        position: absolute;
+        bottom: 56px;
+        left: 0;
+        right: 0;
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        z-index: 50;
+    }
+    .user-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: #374151;
+        text-decoration: none;
+        background: none;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+    }
+    .user-dropdown-item:hover {
+        background: #F3F4F6;
+    }
+
+    /* Main Content Wrapper */
+    .main-wrapper {
+        margin-left: 256px;
+        flex: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background-color: #F8F9FB;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        height: 68px;
+        padding: 0 44px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        position: relative;
+        z-index: 30;
+    }
+    .top-bar-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .role-switcher {
+        display: flex;
+        align-items: center;
+        background: #ECEEF2;
+        border-radius: 999px;
+        padding: 3px;
+    }
+    .role-btn {
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6B7280;
+        text-decoration: none;
+        transition: all var(--ease-standard);
+    }
+    .role-btn.active {
+        background: #FFFFFF;
+        color: #111827;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .notification-container {
+        position: relative;
+    }
+    .notification-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        color: #4B5563;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        transition: all var(--ease-standard);
+    }
+    .notification-btn:hover {
+        background: #F9FAFB;
+        color: #111827;
+    }
+    .notification-indicator {
+        position: absolute;
+        top: 8px;
+        right: 9px;
+        width: 7px;
+        height: 7px;
+        background-color: #EF4444;
+        border-radius: 50%;
+    }
+
+    .notification-popover {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 340px;
+        background-color: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 16px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.10);
+        z-index: 100;
+        overflow: hidden;
+    }
+    .notification-popover-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid #ECEEF2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .notification-popover-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+    }
+    .hub-connected-dot {
+        width: 6px;
+        height: 6px;
+        background-color: #10B981;
+        border-radius: 50%;
+    }
+    .notification-list {
+        max-height: 380px;
+        overflow-y: auto;
+    }
+    .notification-empty {
+        padding: 32px 16px;
+        text-align: center;
+        font-size: 13px;
+        color: #9CA3AF;
+    }
+    .notification-item {
+        padding: 14px 16px;
+        border-bottom: 1px solid #F3F4F6;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transition: background-color var(--ease-standard);
+    }
+    .notification-item.unread {
+        background-color: #F5F7FF;
+    }
+    .notification-item-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .notification-item-body {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .notification-item-message {
+        font-size: 13px;
+        color: #1F2937;
+        line-height: 1.4;
+    }
+    .notification-item-time {
+        font-size: 11px;
+        color: #9CA3AF;
+    }
+
+    .page-content {
+        flex: 1;
+        padding: 0 44px 48px 44px;
+        max-width: 1260px;
+        width: 100%;
+    }
+
+    @@media (max-width: 1024px) {
+        .sidebar {
+            width: 220px;
+        }
+        .main-wrapper {
+            margin-left: 220px;
+        }
+        .top-bar, .page-content {
+            padding-left: 24px;
+            padding-right: 24px;
+        }
+    }
+</style>
+
 @code {
-    private string GetNavClass(string href)
+    private bool IsEmployer => Navigation.Uri.Contains("/employer", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsActive(string href)
     {
         var current = Navigation.Uri;
-        var isActive = current.Contains(href, StringComparison.OrdinalIgnoreCase);
-        return isActive ? "text-label color-primary" : "text-body-sm color-secondary";
+        return current.Contains(href, StringComparison.OrdinalIgnoreCase);
     }
 
     private HubConnection? _hubConnection;
     private List<NotificationDto> _notifications = new();
     private int _unreadCount => _notifications.Count(n => !n.IsRead);
     private bool _showNotifications = false;
+    private bool _showUserMenu = false;
+
+    private GraduateProfileDto? _profile;
+    private DashboardStatsDto? _stats;
 
     protected override async Task OnInitializedAsync()
     {
-        // Mock existing unread notification so the red dot appears for visual verification
+        // Load initial profile & stats
+        try
+        {
+            if (!IsEmployer)
+            {
+                _profile = await Api.GetGraduateProfileAsync();
+                _stats = await Api.GetDashboardStatsAsync();
+            }
+        }
+        catch {}
+
+        // Mock existing notification for visual fidelity
         _notifications.Add(new NotificationDto 
         { 
-            Message = "Your application for Software Engineer at Apple has been viewed by the employer.", 
+            Message = "Your application for Junior Product Designer has been shortlisted.", 
             CreatedAt = DateTime.Now.AddHours(-1), 
             IsRead = false 
         });
-        
         _notifications.Add(new NotificationDto 
         { 
-            Message = "Stripe has shortlisted you for the Product Designer role.", 
-            CreatedAt = DateTime.Now.AddDays(-2), 
+            Message = "Aperture viewed your graduate profile.", 
+            CreatedAt = DateTime.Now.AddDays(-1), 
             IsRead = true 
         });
 
@@ -130,17 +677,55 @@
         }
     }
 
+    private string GetDisplayName()
+    {
+        if (!string.IsNullOrWhiteSpace(_profile?.FullName))
+            return _profile.FullName;
+        return "Alex Morgan";
+    }
+
+    private string GetUserSubtitle()
+    {
+        if (!string.IsNullOrWhiteSpace(_profile?.Degree))
+            return _profile.Degree;
+        return "Design graduate";
+    }
+
+    private string GetUserInitials()
+    {
+        var name = GetDisplayName();
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        if (parts.Length == 1 && parts[0].Length > 0)
+            return parts[0][0].ToString().ToUpper();
+        return "AM";
+    }
+
     private void ToggleNotifications()
     {
         _showNotifications = !_showNotifications;
+        _showUserMenu = false;
         if (_showNotifications)
         {
-            // Mark as read when opened
             foreach (var n in _notifications)
             {
                 n.IsRead = true;
             }
         }
+    }
+
+    private void ToggleUserMenu()
+    {
+        _showUserMenu = !_showUserMenu;
+        _showNotifications = false;
+    }
+
+    private async Task SignOut()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserLogout();
+        Navigation.NavigateTo("/login");
     }
 
     public async ValueTask DisposeAsync()

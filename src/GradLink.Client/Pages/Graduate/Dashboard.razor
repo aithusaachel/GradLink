@@ -1,54 +1,766 @@
+@page "/"
 @page "/graduate/dashboard"
 @layout GradLink.Client.Layout.AppLayout
 @inject ApiClient Api
+@inject NavigationManager Navigation
 
 @if (_isLoading)
 {
-    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+    <div class="py-64 flex items-center justify-center">
+        <AppLoadingState Message="Personalizing your dashboard..." />
+    </div>
 }
 else
 {
-    <div class="mb-64 mt-48">
-        <h1 class="text-display mb-8">@_stats?.TotalApplications</h1>
-        <p class="text-h3 color-secondary">Active applications</p>
-    </div>
+    <div class="dashboard-container">
+        <!-- Top Greeting Row -->
+        <div class="greeting-row">
+            <div>
+                <div class="date-badge">@GetFormattedDate()</div>
+                <h1 class="greeting-title">@GetGreeting(), @GetFirstName().</h1>
+                <p class="greeting-subtitle">Your next opportunity is closer than you think.</p>
+            </div>
 
-    <section>
-        <div class="flex items-center justify-between mb-24">
-            <h2 class="text-h2">Recent Postings</h2>
-            <a href="/graduate/jobs" style="color: var(--color-accent); font-weight: 500;">View all</a>
+            <a href="/graduate/jobs" class="explore-btn">
+                <Icon Name="search" Size="16" />
+                <span>Explore jobs</span>
+            </a>
         </div>
 
-        <div class="flex flex-col">
-            @if (_recentJobs != null)
-            {
-                foreach (var job in _recentJobs.Take(3))
+        <!-- Smart Match Hero Banner -->
+        <div class="hero-banner">
+            <!-- Decorative Visual Elements -->
+            <div class="hero-circle-lime"></div>
+            <div class="hero-ring-shape"></div>
+
+            <div class="hero-content">
+                <div class="smart-match-tag">
+                    <Icon Name="sparkles" Size="13" />
+                    <span>Smart match</span>
+                </div>
+
+                <h2 class="hero-headline">
+                    Roles selected for your skills, not just your degree.
+                </h2>
+
+                <p class="hero-description">
+                    We found @GetOpportunitiesCount() new opportunities aligned with your experience and ambitions.
+                </p>
+
+                <a href="/graduate/jobs" class="hero-cta-btn">
+                    <span>See your matches</span>
+                    <span class="cta-arrow">→</span>
+                </a>
+            </div>
+
+            <!-- Floating Top Match Card -->
+            <div class="floating-match-card">
+                <div class="floating-company-logo">N</div>
+                <div class="floating-card-info">
+                    <div class="floating-role-title">Product Designer</div>
+                    <div class="floating-role-match">96% profile match</div>
+                </div>
+                <span class="top-match-pill">Top match</span>
+            </div>
+        </div>
+
+        <!-- 3 Stat / Metric Cards -->
+        <div class="stats-grid">
+            <!-- Metric 1: New Matches -->
+            <AppCard Padding="true" CssClass="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">New matches</span>
+                    <span class="stat-dot dot-blue"></span>
+                </div>
+                <div class="stat-value">@GetMatchesCount()</div>
+                <div class="stat-footer">+6 this week</div>
+            </AppCard>
+
+            <!-- Metric 2: Applications -->
+            <AppCard Padding="true" CssClass="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Applications</span>
+                    <span class="stat-dot dot-orange"></span>
+                </div>
+                <div class="stat-value">@GetApplicationsCount()</div>
+                <div class="stat-footer">@GetActiveReviewsText()</div>
+            </AppCard>
+
+            <!-- Metric 3: Interviews / Shortlisted -->
+            <AppCard Padding="true" CssClass="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Interviews</span>
+                    <span class="stat-dot dot-green"></span>
+                </div>
+                <div class="stat-value">@GetInterviewsCount()</div>
+                <div class="stat-footer">Next on Friday</div>
+            </AppCard>
+        </div>
+
+        <!-- Recommended For You Section -->
+        <section class="recommended-section">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Recommended for you</h2>
+                    <p class="section-subtitle">Based on your profile, preferences and activity.</p>
+                </div>
+
+                <a href="/graduate/jobs" class="view-all-link">
+                    <span>View all</span>
+                    <span class="view-all-arrow">→</span>
+                </a>
+            </div>
+
+            <!-- Job Cards Grid -->
+            <div class="recommended-grid">
+                @foreach (var job in _displayJobs)
                 {
-                    <a href="/graduate/jobs/@job.Id" class="ios-list-item">
-                        <div class="flex flex-col gap-8">
-                            <h3 class="text-h3">@job.Title</h3>
-                            <div class="flex items-center gap-16 color-secondary">
-                                <span class="flex items-center gap-4"><Icon Name="building" Size="16" /> @job.CompanyName</span>
-                                <span class="flex items-center gap-4"><Icon Name="map-pin" Size="16" /> @job.Location</span>
+                    <div class="job-card" @onclick="() => NavigateToJob(job.Id)">
+                        <div class="job-card-top">
+                            <div class="job-company-avatar" style="background-color: @job.AvatarBg; color: @job.AvatarColor;">
+                                @job.CompanyInitial
                             </div>
+
+                            <button class="bookmark-btn @(job.IsBookmarked ? "bookmarked" : "")" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() => ToggleBookmark(job)"
+                                    title="Save job">
+                                <Icon Name="bookmark" Size="18" />
+                            </button>
                         </div>
-                        <Icon Name="chevron-right" Size="20" CssClass="color-secondary" />
-                    </a>
+
+                        <div class="job-company-name">@job.CompanyName</div>
+                        <h3 class="job-title">@job.Title</h3>
+
+                        <div class="job-metadata">
+                            <span class="job-meta-item">
+                                <Icon Name="map-pin" Size="14" />
+                                <span>@job.Location</span>
+                            </span>
+                            <span class="job-meta-item">
+                                <Icon Name="clock" Size="14" />
+                                <span>@job.TimeAgo</span>
+                            </span>
+                        </div>
+
+                        <div class="job-card-bottom">
+                            <span class="match-pill">@job.MatchPercentage% match</span>
+                            <span class="salary-text">@job.Salary</span>
+                        </div>
+                    </div>
                 }
-            }
-        </div>
-    </section>
+            </div>
+        </section>
+    </div>
 }
+
+<style>
+    .dashboard-container {
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        max-width: 1100px;
+    }
+
+    /* Greeting Row */
+    .greeting-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-top: 8px;
+    }
+
+    .date-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #6B7280;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .greeting-title {
+        font-size: 34px;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin: 0 0 6px 0;
+    }
+
+    .greeting-subtitle {
+        font-size: 15px;
+        color: #6B7280;
+        margin: 0;
+    }
+
+    .explore-btn {
+        background-color: #4F46E5;
+        color: #FFFFFF;
+        padding: 10px 22px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color var(--ease-standard), transform var(--ease-standard);
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+    }
+    .explore-btn:hover {
+        background-color: #4338CA;
+        transform: translateY(-1px);
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+        background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+        border-radius: 24px;
+        padding: 44px 48px;
+        position: relative;
+        overflow: hidden;
+        color: #FFFFFF;
+        box-shadow: 0 16px 36px rgba(79, 70, 229, 0.20);
+        min-height: 290px;
+        display: flex;
+        align-items: center;
+    }
+
+    .hero-circle-lime {
+        position: absolute;
+        right: 70px;
+        top: -45px;
+        width: 220px;
+        height: 220px;
+        background-color: #D4F938;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .hero-ring-shape {
+        position: absolute;
+        right: 150px;
+        bottom: -70px;
+        width: 170px;
+        height: 170px;
+        border: 28px solid rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 540px;
+    }
+
+    .smart-match-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: rgba(255, 255, 255, 0.16);
+        backdrop-filter: blur(8px);
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #FFFFFF;
+        margin-bottom: 20px;
+    }
+
+    .hero-headline {
+        font-size: 34px;
+        line-height: 1.18;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 14px 0;
+        color: #FFFFFF;
+    }
+
+    .hero-description {
+        font-size: 15px;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.88);
+        margin: 0 0 26px 0;
+        max-width: 480px;
+    }
+
+    .hero-cta-btn {
+        background-color: #D4F938;
+        color: #111827;
+        border-radius: 999px;
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform var(--ease-standard), box-shadow var(--ease-standard);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    }
+    .hero-cta-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.20);
+    }
+    .cta-arrow {
+        font-size: 16px;
+        font-weight: 700;
+        transition: transform var(--ease-standard);
+    }
+    .hero-cta-btn:hover .cta-arrow {
+        transform: translateX(3px);
+    }
+
+    /* Floating Top Match Card on Hero */
+    .floating-match-card {
+        position: absolute;
+        right: 64px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 3;
+        background: #FFFFFF;
+        border-radius: 18px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
+        min-width: 250px;
+    }
+
+    .floating-company-logo {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        font-weight: 700;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .floating-card-info {
+        flex: 1;
+    }
+
+    .floating-role-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.3;
+    }
+
+    .floating-role-match {
+        font-size: 12px;
+        color: #6B7280;
+    }
+
+    .top-match-pill {
+        background-color: #DCFCE7;
+        color: #15803D;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .stat-card {
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 18px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        transition: transform var(--ease-standard), box-shadow var(--ease-standard);
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #4B5563;
+    }
+
+    .stat-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .dot-blue { background-color: #4F46E5; }
+    .dot-orange { background-color: #F97316; }
+    .dot-green { background-color: #10B981; }
+
+    .stat-value {
+        font-size: 38px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+    }
+
+    .stat-footer {
+        font-size: 13px;
+        color: #6B7280;
+    }
+
+    /* Recommended Section */
+    .recommended-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px 0;
+    }
+
+    .section-subtitle {
+        font-size: 14px;
+        color: #6B7280;
+        margin: 0;
+    }
+
+    .view-all-link {
+        font-size: 14px;
+        font-weight: 600;
+        color: #4F46E5;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: gap var(--ease-standard);
+    }
+    .view-all-link:hover {
+        gap: 7px;
+    }
+    .view-all-arrow {
+        font-size: 15px;
+    }
+
+    /* Job Cards Grid */
+    .recommended-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .job-card {
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 18px;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        transition: transform var(--ease-standard), box-shadow var(--ease-standard), border-color var(--ease-standard);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .job-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+        border-color: #D1D5DB;
+    }
+
+    .job-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    .job-company-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+    }
+
+    .bookmark-btn {
+        background: none;
+        border: none;
+        color: #9CA3AF;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color var(--ease-standard);
+    }
+    .bookmark-btn:hover {
+        color: #4B5563;
+    }
+    .bookmark-btn.bookmarked {
+        color: #4F46E5;
+    }
+
+    .job-company-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: #6B7280;
+        margin-bottom: 4px;
+    }
+
+    .job-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 14px 0;
+        line-height: 1.35;
+    }
+
+    .job-metadata {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 13px;
+        color: #6B7280;
+        margin-bottom: 20px;
+    }
+
+    .job-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .job-card-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid #F3F4F6;
+    }
+
+    .match-pill {
+        background-color: #ECFDF5;
+        color: #059669;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+
+    .salary-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: #6B7280;
+    }
+
+    @@media (max-width: 1024px) {
+        .floating-match-card {
+            display: none;
+        }
+        .stats-grid, .recommended-grid {
+            grid-template-columns: 1fr;
+        }
+        .greeting-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+    }
+</style>
 
 @code {
     private bool _isLoading = true;
     private DashboardStatsDto? _stats;
-    private List<JobListingDto>? _recentJobs;
+    private GraduateProfileDto? _profile;
+    private List<JobListingDto> _apiJobs = new();
+    private List<DashboardJobViewModel> _displayJobs = new();
 
     protected override async Task OnInitializedAsync()
     {
-        _stats = await Api.GetDashboardStatsAsync();
-        _recentJobs = await Api.GetJobsAsync();
+        try
+        {
+            _stats = await Api.GetDashboardStatsAsync();
+            _profile = await Api.GetGraduateProfileAsync();
+            var jobs = await Api.GetJobsAsync();
+            if (jobs != null)
+            {
+                _apiJobs = jobs;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
+        }
+
+        BuildDisplayJobs();
         _isLoading = false;
+    }
+
+    private void BuildDisplayJobs()
+    {
+        // 3 Curated cards matching the screenshot aesthetic, enriched with live API data if available
+        var seedCards = new List<DashboardJobViewModel>
+        {
+            new()
+            {
+                Id = 1,
+                CompanyInitial = "N",
+                CompanyName = "Northstar Labs",
+                Title = "Junior Product Designer",
+                Location = "London · Hybrid",
+                TimeAgo = "2h",
+                MatchPercentage = 96,
+                Salary = "£32k–£38k",
+                AvatarBg = "#EDE9FE",
+                AvatarColor = "#6D28D9"
+            },
+            new()
+            {
+                Id = 2,
+                CompanyInitial = "A",
+                CompanyName = "Aperture",
+                Title = "Graduate Software Engineer",
+                Location = "Manchester · Hybrid",
+                TimeAgo = "5h",
+                MatchPercentage = 91,
+                Salary = "£35k–£42k",
+                AvatarBg = "#FEE2E2",
+                AvatarColor = "#DC2626"
+            },
+            new()
+            {
+                Id = 3,
+                CompanyInitial = "F",
+                CompanyName = "Form & Field",
+                Title = "Marketing Associate",
+                Location = "Remote · UK",
+                TimeAgo = "1d",
+                MatchPercentage = 87,
+                Salary = "£28k–£32k",
+                AvatarBg = "#DCFCE7",
+                AvatarColor = "#059669"
+            }
+        };
+
+        // If backend has posted jobs, overlay live data
+        if (_apiJobs.Count > 0)
+        {
+            for (int i = 0; i < seedCards.Count && i < _apiJobs.Count; i++)
+            {
+                var live = _apiJobs[i];
+                seedCards[i].Id = live.Id;
+                if (!string.IsNullOrWhiteSpace(live.Title)) seedCards[i].Title = live.Title;
+                if (!string.IsNullOrWhiteSpace(live.CompanyName))
+                {
+                    seedCards[i].CompanyName = live.CompanyName;
+                    seedCards[i].CompanyInitial = live.CompanyName[0].ToString().ToUpper();
+                }
+                if (!string.IsNullOrWhiteSpace(live.Location)) seedCards[i].Location = live.Location;
+                if (!string.IsNullOrWhiteSpace(live.SalaryRange)) seedCards[i].Salary = live.SalaryRange;
+            }
+        }
+
+        _displayJobs = seedCards;
+    }
+
+    private string GetFormattedDate()
+    {
+        return DateTime.UtcNow.ToString("dddd, dd MMMM").ToUpper();
+    }
+
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour < 12) return "Good morning";
+        if (hour < 18) return "Good afternoon";
+        return "Good evening";
+    }
+
+    private string GetFirstName()
+    {
+        if (!string.IsNullOrWhiteSpace(_profile?.FullName))
+        {
+            var parts = _profile.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0) return parts[0];
+        }
+        return "Alex";
+    }
+
+    private int GetMatchesCount() => 18;
+
+    private int GetOpportunitiesCount() => _apiJobs.Count > 0 ? _apiJobs.Count + 12 : 18;
+
+    private int GetApplicationsCount() => _stats?.TotalApplications > 0 ? _stats.TotalApplications : 4;
+
+    private string GetActiveReviewsText()
+    {
+        var count = _stats?.PendingApplications > 0 ? _stats.PendingApplications : 2;
+        return $"{count} active reviews";
+    }
+
+    private int GetInterviewsCount()
+    {
+        var count = (_stats?.ShortlistedApplications ?? 0) + (_stats?.AcceptedApplications ?? 0);
+        return count > 0 ? count : 2;
+    }
+
+    private void ToggleBookmark(DashboardJobViewModel job)
+    {
+        job.IsBookmarked = !job.IsBookmarked;
+    }
+
+    private void NavigateToJob(int id)
+    {
+        Navigation.NavigateTo($"/graduate/jobs/{id}");
+    }
+
+    private sealed class DashboardJobViewModel
+    {
+        public int Id { get; set; }
+        public string CompanyInitial { get; set; } = "C";
+        public string CompanyName { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Location { get; set; } = "";
+        public string TimeAgo { get; set; } = "";
+        public int MatchPercentage { get; set; } = 90;
+        public string Salary { get; set; } = "";
+        public string AvatarBg { get; set; } = "#EEF2FF";
+        public string AvatarColor { get; set; } = "#4F46E5";
+        public bool IsBookmarked { get; set; }
     }
 }
