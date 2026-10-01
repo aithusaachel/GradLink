@@ -1,82 +1,54 @@
 @page "/employer/profile"
-@layout GradLink.Client.Layout.AppLayout
-@inject ApiClient Api
-@inject NavigationManager Navigation
-@inject LocalStorageService LocalStorage
-@inject AuthenticationStateProvider AuthStateProvider
+@layout GradLink.Client.Layout.EmployerLayout
 
-<div class="mb-48 mt-48">
-    <h1 class="text-h1">Company Profile</h1>
+<PageTitle>Company profile – Gradly Employer</PageTitle>
+
+<div class="e-banner">
+  <div class="e-who">
+    <div class="e-logolg">NL</div>
+    <div><h2>@name</h2><p>Product software · London, UK</p></div>
+  </div>
+  <button class="e-ghost" @onclick="Save">@(saved ? "Saved ✓" : "Save changes")</button>
 </div>
 
-@if (_isLoading)
-{
-    <div class="p-48 text-center text-body color-secondary">Loading...</div>
-}
-else if (_profile != null)
-{
-    <div class="flex flex-col gap-32" style="max-width: 800px;">
-        
-        <!-- Header/Avatar Area -->
-        <div class="flex flex-col items-center gap-16 mb-16">
-            <div class="flex items-center justify-center" style="width: 96px; height: 96px; border-radius: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); font-size: 40px; font-weight: 500;">
-                @(_profile.CompanyName.FirstOrDefault())
-            </div>
-            <div style="text-align: center;">
-                <h2 class="text-h2">@_profile.CompanyName</h2>
-                <p class="text-body color-secondary">@_profile.Email</p>
-            </div>
-        </div>
-
-        <!-- Company Details -->
-        <div class="ios-list-group">
-            <div class="ios-list-header">COMPANY DETAILS</div>
-            <div class="ios-list-cards">
-                <div class="ios-list-row">
-                    <span class="color-primary">Company Name</span>
-                    <span class="color-secondary">@_profile.CompanyName</span>
-                </div>
-                <div class="ios-list-row">
-                    <span class="color-primary">Industry</span>
-                    <span class="color-secondary">@_profile.Industry</span>
-                </div>
-                <div class="ios-list-row">
-                    <span class="color-primary">Website</span>
-                    <span class="color-secondary">@_profile.Website</span>
-                </div>
-                <div class="ios-list-row" style="align-items: flex-start;">
-                    <span class="color-primary" style="margin-top: 2px;">Description</span>
-                    <span class="color-secondary" style="max-width: 400px; text-align: right; line-height: 1.5;">
-                        @_profile.Description
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Actions -->
-        
-        <!-- Action -->
-        <div class="mt-16 text-center">
-            <button class="app-btn app-btn-danger" style="width: 100%;" @onclick="SignOut">Sign Out</button>
-        </div>
-
+<div class="e-pgrid">
+  <div>
+    <div class="e-card e-form">
+      <h3>Company information</h3>
+      <span class="sub">Keep your profile accurate so candidates know who you are.</span>
+      <div class="e-fields">
+        <label>Company name<input @bind="name" /></label>
+        <label>Industry<input @bind="industry" /></label>
+        <label>Location<input @bind="location" /></label>
+        <label>Company size
+          <select @bind="size">
+            <option>1–10 employees</option><option>11–50 employees</option>
+            <option>51–200 employees</option><option>200+ employees</option>
+          </select>
+        </label>
+      </div>
     </div>
-}
+    <div class="e-card e-form">
+      <h3 style="margin-bottom:20px">About your company</h3>
+      <label><textarea @bind="about"></textarea></label>
+    </div>
+  </div>
+
+  <div class="e-card e-form">
+    <h3 style="margin-bottom:20px">Company profile</h3>
+    <div class="e-assets">
+      <div class="jicon"><svg class="ico" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 011-1h9a1 1 0 011 1v17M16 9h3a1 1 0 011 1v11M3 21h18M9 8h3M9 12h3M9 16h3"/></svg></div>
+      <b>Brand assets</b><small>Logo and cover uploaded</small>
+      <button class="e-ghost">Manage assets</button>
+    </div>
+  </div>
+</div>
 
 @code {
-    private bool _isLoading = true;
-    private EmployerProfileDto? _profile;
+  string name = "Northstar Labs", industry = "Software & technology", location = "London, United Kingdom",
+         size = "51–200 employees", about = "We build calm, thoughtful software for creative teams.";
+  bool saved;
 
-    protected override async Task OnInitializedAsync()
-    {
-        _profile = await Api.GetEmployerProfileAsync();
-        _isLoading = false;
-    }
-
-    private async Task SignOut()
-    {
-        await LocalStorage.RemoveItemAsync("authToken");
-        ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserLogout();
-        Navigation.NavigateTo("/login");
-    }
+  // TODO: send to GradLink.API
+  void Save() => saved = true;
 }
