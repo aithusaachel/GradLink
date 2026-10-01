@@ -1,7 +1,10 @@
 @if (IsOpen)
 {
-    <div class="app-modal-backdrop" @onclick="Close">
-        <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" @onclick:stopPropagation>
+    <div class="app-modal-backdrop" tabindex="-1" @onclick="Close" @onkeydown="HandleKeyDown">
+        <div class="app-modal" role="dialog" aria-modal="true"
+             aria-labelledby="@(string.IsNullOrWhiteSpace(Title) ? null : "modal-title")"
+             aria-label="@(string.IsNullOrWhiteSpace(Title) ? "Dialog" : null)"
+             tabindex="-1" @ref="modalElement" @onclick:stopPropagation @onkeydown="HandleKeyDown">
             @if (ShowHeader)
             {
                 <div class="app-modal-header">
@@ -49,6 +52,31 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference modalElement;
+    private bool focusPending;
+    private bool wasOpen;
+
+    protected override void OnParametersSet()
+    {
+        focusPending = IsOpen && !wasOpen;
+        wasOpen = IsOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusPending)
+        {
+            focusPending = false;
+            await modalElement.FocusAsync();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            await Close();
+    }
 
     private async Task Close()
     {

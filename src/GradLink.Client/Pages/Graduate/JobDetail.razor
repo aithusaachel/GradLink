@@ -17,7 +17,7 @@ else if (_job != null)
         <!-- Back Link Navigation -->
         <div class="back-nav-row">
             <a href="/graduate/jobs" class="back-link">
-                <span class="back-arrow">←</span>
+                <span class="back-arrow" aria-hidden="true"><Icon Name="chevron-left" Size="16" /></span>
                 <span>Back to jobs</span>
             </a>
         </div>
@@ -150,7 +150,7 @@ else if (_job != null)
 
                         <a href="/graduate/applications" class="view-apps-link-btn">
                             <span>Track in My Applications</span>
-                            <span>→</span>
+                            <Icon Name="chevron-right" Size="16" />
                         </a>
                     }
                     else
@@ -187,7 +187,7 @@ else if (_job != null)
                             else
                             {
                                 <span>Submit application</span>
-                                <span class="submit-arrow">→</span>
+                                <span class="submit-arrow" aria-hidden="true"><Icon Name="chevron-right" Size="18" /></span>
                             }
                         </button>
 
@@ -231,8 +231,8 @@ else if (_job != null)
     .job-detail-container {
         display: flex;
         flex-direction: column;
-        gap: 24px;
-        max-width: 1100px;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
     }
 
     .back-nav-row {
@@ -253,7 +253,13 @@ else if (_job != null)
         transform: translateX(-3px);
     }
     .back-arrow {
-        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        line-height: 0;
+    }
+    .back-arrow svg,
+    .submit-arrow svg {
+        display: block;
     }
 
     .alert-box {
@@ -275,7 +281,7 @@ else if (_job != null)
     .job-hero-card {
         background-color: #FFFFFF;
         border: 1px solid #ECEEF2;
-        border-radius: 20px;
+        border-radius: var(--surface-card-radius);
         padding: 32px 36px;
         display: flex;
         align-items: flex-start;
@@ -618,8 +624,9 @@ else if (_job != null)
     }
 
     .submit-arrow {
-        font-size: 16px;
-        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        line-height: 0;
         transition: transform var(--ease-standard);
     }
     .submit-app-btn:hover .submit-arrow {
@@ -685,12 +692,48 @@ else if (_job != null)
         margin-top: 8px;
     }
 
+    .submit-app-btn:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+    .bookmark-action-btn:active {
+        transform: scale(0.94);
+    }
+
     @@media (max-width: 900px) {
         .job-content-grid {
             grid-template-columns: 1fr;
         }
+        .job-right-column {
+            position: relative;
+            top: 0;
+        }
         .job-hero-card {
             flex-direction: column;
+            padding: 24px;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .job-hero-card {
+            padding: 18px 16px;
+        }
+        .job-company-avatar {
+            width: 44px;
+            height: 44px;
+            font-size: 18px;
+        }
+        .job-role-headline {
+            font-size: 22px;
+        }
+        .content-section-card {
+            padding: 20px 16px;
+        }
+        .job-meta-chips {
+            gap: 8px;
+        }
+        .meta-chip {
+            font-size: 12px;
+            padding: 4px 10px;
         }
     }
 </style>

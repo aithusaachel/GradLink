@@ -4,20 +4,28 @@
         <label class="app-dropdown-label">@Label</label>
     }
 
-    <div class="app-dropdown-control @(IsOpen ? "open" : "")" @onclick="ToggleOpen">
+    <button type="button"
+            class="app-dropdown-control @(IsOpen ? "open" : "")"
+            aria-haspopup="listbox"
+            aria-expanded="@IsOpen"
+            aria-controls="@MenuId"
+            @onclick="ToggleOpen"
+            @onkeydown="HandleControlKeyDown">
         <span class="app-dropdown-value">@SelectedText</span>
-        <span class="app-dropdown-chevron">▾</span>
-    </div>
+        <Icon Name="chevron-down" Size="18" />
+    </button>
 
     @if (IsOpen)
     {
-        <div class="app-dropdown-menu" role="listbox">
+        <div id="@MenuId" class="app-dropdown-menu" role="listbox" aria-label="@Label">
             @foreach (var option in Options)
             {
                 var isSelected = option.Value.Equals(CurrentValue, StringComparison.Ordinal);
 
                 <button type="button"
                         class="app-dropdown-option @(isSelected ? "selected" : "")"
+                        role="option"
+                        aria-selected="@isSelected"
                         @onclick="() => Select(option)">
                     @option.Text
                 </button>
@@ -35,14 +43,23 @@
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
 
     private bool IsOpen { get; set; }
+    private string MenuId { get; } = $"app-dropdown-menu-{Guid.NewGuid():N}";
 
     private string CurrentValue => Value;
 
     private string SelectedText => Options.FirstOrDefault(o => o.Value.Equals(CurrentValue, StringComparison.Ordinal))?.Text ?? "Select an option";
 
-    private async Task ToggleOpen()
+    private void ToggleOpen()
     {
         IsOpen = !IsOpen;
+    }
+
+    private void HandleControlKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            IsOpen = false;
+        else if (args.Key is "Enter" or " " or "ArrowDown")
+            IsOpen = true;
     }
 
     private async Task Select(AppDropdownOption option)

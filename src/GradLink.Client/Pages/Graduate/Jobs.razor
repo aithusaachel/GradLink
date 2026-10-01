@@ -76,7 +76,12 @@ else
             <div class="jobs-grid">
                 @foreach (var job in FilteredJobs)
                 {
-                    <div class="job-card" @onclick="() => NavigateToDetail(job.Id)">
+                    <div class="job-card"
+                        role="link"
+                        tabindex="0"
+                        aria-label="View @job.Title at @job.CompanyName"
+                        @onclick="() => NavigateToDetail(job.Id)"
+                        @onkeydown="(args) => HandleJobCardKeyDown(args, job.Id)">
                         <div class="job-card-top">
                             <div class="company-initial-badge" style="background-color: @job.AvatarBg; color: @job.AvatarColor;">
                                 @job.CompanyInitial
@@ -119,8 +124,8 @@ else
     .jobs-page-container {
         display: flex;
         flex-direction: column;
-        gap: 20px;
-        max-width: 1100px;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
     }
 
     .jobs-header {
@@ -128,7 +133,7 @@ else
     }
 
     .jobs-title {
-        font-size: 34px;
+        font-size: var(--type-page-title);
         font-weight: 800;
         color: #111827;
         letter-spacing: -0.025em;
@@ -137,7 +142,7 @@ else
     }
 
     .jobs-subtitle {
-        font-size: 15px;
+        font-size: var(--type-page-subtitle);
         color: #6B7280;
         margin: 0;
     }
@@ -146,7 +151,7 @@ else
     .search-bar-card {
         background-color: #FFFFFF;
         border: 1px solid #ECEEF2;
-        border-radius: 16px;
+        border-radius: var(--surface-card-radius);
         padding: 8px 10px 8px 20px;
         display: flex;
         align-items: center;
@@ -402,9 +407,43 @@ else
         margin-bottom: 16px;
     }
 
+    /* Micro-interactions */
+    .job-card:active {
+        transform: scale(0.98);
+    }
+    .filter-pill:active {
+        transform: scale(0.96);
+    }
+
     @@media (max-width: 900px) {
         .jobs-grid {
             grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .jobs-title {
+            font-size: 26px;
+        }
+        .search-bar-card {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px;
+            gap: 10px;
+        }
+        .search-btn {
+            width: 100%;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+        }
+        .filters-row {
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-pill {
+            padding: 6px 14px;
+            font-size: 12px;
         }
     }
 </style>
@@ -601,6 +640,12 @@ else
     private void NavigateToDetail(int id)
     {
         Navigation.NavigateTo($"/graduate/jobs/{id}");
+    }
+
+    private void HandleJobCardKeyDown(KeyboardEventArgs args, int id)
+    {
+        if (args.Key is "Enter" or " ")
+            NavigateToDetail(id);
     }
 
     private sealed class JobCardViewModel

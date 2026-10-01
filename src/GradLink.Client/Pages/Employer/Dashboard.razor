@@ -1,7 +1,7 @@
 @page "/employer/dashboard"
 @layout GradLink.Client.Layout.EmployerLayout
 
-<PageTitle>Overview – Gradly Employer</PageTitle>
+<PageTitle>Overview – GradLink Employer</PageTitle>
 
 <div class="e-head">
   <div>
@@ -35,7 +35,7 @@
         <div><b>@r.Title</b><small>@r.Closes</small></div>
         <div><span class="num">@r.Applicants</span><br /><small>Applicants</small></div>
         <div><span class="num">@r.New</span><br /><small>New</small></div>
-        <span style="justify-self:end">→</span>
+        <span class="e-row-action" aria-label="View applicants"><Icon Name="chevron-right" Size="18" /></span>
       </a>
     }
   </div>
@@ -56,7 +56,7 @@
 
   // TODO: replace with data from GradLink.API (inject a service from /Services)
   Stat[] stats = {
-    new("Active jobs", 4, "1 closes this week", "#5b45ee"),
+    new("Active jobs", 4, "1 closes this week", "#4F46E5"),
     new("Total applicants", 86, "+18 this week", "#f0913a"),
     new("To review", 12, "Across 3 roles", "#3aa675"),
     new("Interviews", 5, "Next on Thursday", "#2f6fdb") };
@@ -65,7 +65,7 @@
     new("Frontend Engineer", "Closes in 8d", 28, 3, "c-blue"),
     new("Marketing Associate", "Closes in 21d", 17, 1, "c-red") };
   Activity[] activity = {
-    new("Maya submitted an application", "1h ago", "#5b45ee"),
+    new("Maya submitted an application", "1h ago", "#4F46E5"),
     new("Theo moved to interview", "2h ago", "#3aa675"),
     new("Lena updated her portfolio", "3h ago", "#f0913a"),
     new("Sam accepted your invite", "4h ago", "#2f6fdb") };

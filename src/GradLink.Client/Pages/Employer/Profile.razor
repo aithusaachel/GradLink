@@ -1,7 +1,7 @@
 @page "/employer/profile"
 @layout GradLink.Client.Layout.EmployerLayout
 
-<PageTitle>Company profile – Gradly Employer</PageTitle>
+<PageTitle>Company profile – GradLink Employer</PageTitle>
 
 <div class="e-banner">
   <div class="e-who">
@@ -39,7 +39,13 @@
     <div class="e-assets">
       <div class="jicon"><svg class="ico" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 011-1h9a1 1 0 011 1v17M16 9h3a1 1 0 011 1v11M3 21h18M9 8h3M9 12h3M9 16h3"/></svg></div>
       <b>Brand assets</b><small>Logo and cover uploaded</small>
-      <button class="e-ghost">Manage assets</button>
+      <button class="e-ghost" @onclick="ToggleAssetManager" aria-expanded="@assetManagerOpen">
+        @(assetManagerOpen ? "Close asset manager" : "Manage assets")
+      </button>
+      @if (assetManagerOpen)
+      {
+        <div class="e-assets-status" role="status">Asset manager opened. Logo and cover controls are ready.</div>
+      }
     </div>
   </div>
 </div>
@@ -48,7 +54,9 @@
   string name = "Northstar Labs", industry = "Software & technology", location = "London, United Kingdom",
          size = "51–200 employees", about = "We build calm, thoughtful software for creative teams.";
   bool saved;
+    bool assetManagerOpen;
 
   // TODO: send to GradLink.API
   void Save() => saved = true;
+  void ToggleAssetManager() => assetManagerOpen = !assetManagerOpen;
 }

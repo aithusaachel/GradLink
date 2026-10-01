@@ -1,4 +1,8 @@
-<div class="app-list-item @(Clickable ? "clickable" : "") @CssClass" style="@Style" @onclick="HandleClick">
+<div class="app-list-item @(Clickable ? "clickable" : "") @CssClass" style="@Style"
+    role="@(Clickable && OnClick.HasDelegate ? "button" : null)"
+    tabindex="@(Clickable && OnClick.HasDelegate ? "0" : null)"
+    aria-label="@(Clickable ? Title : null)"
+    @onclick="HandleClick" @onkeydown="HandleKeyDown">
     <div class="app-list-item-main">
         @if (LeadingContent is not null)
         {
@@ -50,5 +54,11 @@
         {
             await OnClick.InvokeAsync();
         }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ")
+            await HandleClick();
     }
 }

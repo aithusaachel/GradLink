@@ -141,8 +141,8 @@ else
     .profile-page-container {
         display: flex;
         flex-direction: column;
-        gap: 24px;
-        max-width: 1100px;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
     }
 
     /* Feedback Alert */
@@ -169,8 +169,8 @@ else
 
     /* Hero Banner */
     .profile-hero-banner {
-        background: #4F46E5;
-        border-radius: 20px;
+        background: var(--color-accent);
+        border-radius: var(--surface-card-radius);
         padding: 32px 36px;
         display: flex;
         align-items: center;
@@ -190,7 +190,7 @@ else
         width: 64px;
         height: 64px;
         border-radius: 18px;
-        background-color: #D4F938;
+        background-color: var(--color-brand-lime);
         color: #111827;
         font-weight: 800;
         font-size: 22px;
@@ -431,6 +431,13 @@ else
         cursor: not-allowed;
     }
 
+    .save-profile-btn:active:not(:disabled) {
+        transform: scale(0.97);
+    }
+    .replace-cv-btn:active {
+        transform: scale(0.96);
+    }
+
     @@media (max-width: 900px) {
         .profile-main-grid {
             grid-template-columns: 1fr;
@@ -442,6 +449,31 @@ else
             flex-direction: column;
             align-items: flex-start;
             gap: 16px;
+        }
+        .hero-actions {
+            width: 100%;
+        }
+        .save-profile-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .profile-hero-banner {
+            padding: 20px 16px;
+            border-radius: 16px;
+        }
+        .hero-name {
+            font-size: 22px;
+        }
+        .hero-avatar {
+            width: 52px;
+            height: 52px;
+            font-size: 18px;
+        }
+        .profile-card {
+            padding: 18px 16px;
         }
     }
 </style>

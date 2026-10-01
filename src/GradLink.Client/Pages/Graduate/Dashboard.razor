@@ -49,7 +49,7 @@ else
 
                 <a href="/graduate/jobs" class="hero-cta-btn">
                     <span>See your matches</span>
-                    <span class="cta-arrow">→</span>
+                    <span class="cta-arrow" aria-hidden="true"><Icon Name="chevron-right" Size="18" /></span>
                 </a>
             </div>
 
@@ -107,7 +107,7 @@ else
 
                 <a href="/graduate/jobs" class="view-all-link">
                     <span>View all</span>
-                    <span class="view-all-arrow">→</span>
+                    <span class="view-all-arrow" aria-hidden="true"><Icon Name="chevron-right" Size="16" /></span>
                 </a>
             </div>
 
@@ -115,7 +115,12 @@ else
             <div class="recommended-grid">
                 @foreach (var job in _displayJobs)
                 {
-                    <div class="job-card" @onclick="() => NavigateToJob(job.Id)">
+                    <div class="job-card"
+                        role="link"
+                        tabindex="0"
+                        aria-label="View @job.Title at @job.CompanyName"
+                        @onclick="() => NavigateToJob(job.Id)"
+                        @onkeydown="(args) => HandleJobCardKeyDown(args, job.Id)">
                         <div class="job-card-top">
                             <div class="job-company-avatar" style="background-color: @job.AvatarBg; color: @job.AvatarColor;">
                                 @job.CompanyInitial
@@ -158,8 +163,8 @@ else
     .dashboard-container {
         display: flex;
         flex-direction: column;
-        gap: 32px;
-        max-width: 1100px;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
     }
 
     /* Greeting Row */
@@ -180,7 +185,7 @@ else
     }
 
     .greeting-title {
-        font-size: 34px;
+        font-size: var(--type-page-title);
         font-weight: 800;
         color: #111827;
         letter-spacing: -0.025em;
@@ -189,7 +194,7 @@ else
     }
 
     .greeting-subtitle {
-        font-size: 15px;
+        font-size: var(--type-page-subtitle);
         color: #6B7280;
         margin: 0;
     }
@@ -307,9 +312,15 @@ else
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.20);
     }
     .cta-arrow {
-        font-size: 16px;
-        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
         transition: transform var(--ease-standard);
+    }
+    .cta-arrow svg,
+    .view-all-arrow svg {
+        display: block;
     }
     .hero-cta-btn:hover .cta-arrow {
         transform: translateX(3px);
@@ -470,7 +481,10 @@ else
         gap: 7px;
     }
     .view-all-arrow {
-        font-size: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
     }
 
     /* Job Cards Grid */
@@ -588,17 +602,69 @@ else
         color: #6B7280;
     }
 
+    /* Active touch micro-interaction */
+    .job-card:active {
+        transform: scale(0.98);
+    }
+    .hero-cta-btn:active {
+        transform: scale(0.97);
+    }
+
     @@media (max-width: 1024px) {
         .floating-match-card {
             display: none;
         }
-        .stats-grid, .recommended-grid {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .recommended-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        .recommended-grid {
             grid-template-columns: 1fr;
         }
         .greeting-row {
             flex-direction: column;
             align-items: flex-start;
             gap: 16px;
+        }
+        .greeting-title {
+            font-size: 28px;
+        }
+        .hero-banner {
+            padding: 32px 24px;
+            border-radius: 20px;
+        }
+        .hero-headline {
+            font-size: 26px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .greeting-title {
+            font-size: 24px;
+        }
+        .hero-banner {
+            padding: 24px 18px;
+        }
+        .hero-headline {
+            font-size: 22px;
+        }
+        .explore-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .hero-cta-btn {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>
@@ -747,6 +813,12 @@ else
     private void NavigateToJob(int id)
     {
         Navigation.NavigateTo($"/graduate/jobs/{id}");
+    }
+
+    private void HandleJobCardKeyDown(KeyboardEventArgs args, int id)
+    {
+        if (args.Key is "Enter" or " ")
+            NavigateToJob(id);
     }
 
     private sealed class DashboardJobViewModel

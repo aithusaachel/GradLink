@@ -9,9 +9,9 @@
         <div class="app-loading-title">@Title</div>
     }
 
-    @if (!string.IsNullOrWhiteSpace(Description))
+    @if (!string.IsNullOrWhiteSpace(Message) || !string.IsNullOrWhiteSpace(Description))
     {
-        <div class="app-loading-description">@Description</div>
+        <div class="app-loading-description">@(string.IsNullOrWhiteSpace(Message) ? Description : Message)</div>
     }
 </div>
 
@@ -19,6 +19,7 @@
     [Parameter] public bool ShowSpinner { get; set; } = true;
     [Parameter] public string Title { get; set; } = "Loading";
     [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string Message { get; set; } = "";
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public string Style { get; set; } = "";
 }

@@ -62,7 +62,12 @@ else
             <div class="table-body">
                 @foreach (var app in _displayApplications)
                 {
-                    <div class="application-row" @onclick="() => OpenApplicationDetail(app)">
+                    <div class="application-row"
+                        role="button"
+                        tabindex="0"
+                        aria-label="View application for @app.JobTitle at @app.CompanyName"
+                        @onclick="() => OpenApplicationDetail(app)"
+                        @onkeydown="(args) => HandleApplicationKeyDown(args, app)">
                         <!-- Role & Company Info -->
                         <div class="col-role role-info-wrapper">
                             <div class="company-avatar-box" style="background-color: @app.AvatarBg; color: @app.AvatarColor;">
@@ -88,7 +93,7 @@ else
 
                         <!-- Right Arrow -->
                         <div class="col-arrow arrow-icon-wrap">
-                            <span class="row-arrow">→</span>
+                            <span class="row-arrow" aria-hidden="true"><Icon Name="chevron-right" Size="18" /></span>
                         </div>
                     </div>
                 }
@@ -151,8 +156,8 @@ else
     .applications-page-container {
         display: flex;
         flex-direction: column;
-        gap: 24px;
-        max-width: 1100px;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
     }
 
     .applications-header {
@@ -160,7 +165,7 @@ else
     }
 
     .applications-title {
-        font-size: 34px;
+        font-size: var(--type-page-title);
         font-weight: 800;
         color: #111827;
         letter-spacing: -0.025em;
@@ -169,7 +174,7 @@ else
     }
 
     .applications-subtitle {
-        font-size: 15px;
+        font-size: var(--type-page-subtitle);
         color: #6B7280;
         margin: 0;
     }
@@ -178,7 +183,7 @@ else
     .summary-metrics-card {
         background-color: #FFFFFF;
         border: 1px solid #ECEEF2;
-        border-radius: 18px;
+        border-radius: var(--surface-card-radius);
         padding: 24px 32px;
         display: flex;
         align-items: center;
@@ -194,7 +199,7 @@ else
     }
 
     .metric-number {
-        font-size: 34px;
+        font-size: var(--type-page-title);
         font-weight: 800;
         color: #111827;
         line-height: 1;
@@ -219,7 +224,7 @@ else
     .applications-table-card {
         background-color: #FFFFFF;
         border: 1px solid #ECEEF2;
-        border-radius: 18px;
+        border-radius: var(--surface-card-radius);
         overflow: hidden;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     }
@@ -349,14 +354,23 @@ else
     }
 
     .row-arrow {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
         color: #9CA3AF;
-        font-size: 16px;
-        font-weight: 600;
-        transition: transform var(--ease-standard), color var(--ease-standard);
+        transition: background-color var(--ease-standard), color var(--ease-standard), transform var(--ease-standard);
     }
     .application-row:hover .row-arrow {
-        color: #111827;
+        background: var(--color-accent-tint);
+        color: var(--color-accent);
         transform: translateX(3px);
+    }
+    .row-arrow svg {
+        display: block;
     }
 
     /* Modal Styles */
@@ -409,17 +423,49 @@ else
         margin: 0;
     }
 
+    .application-row:active {
+        transform: scale(0.99);
+    }
+
     @@media (max-width: 900px) {
         .summary-metrics-card {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 20px;
         }
         .metric-divider {
             display: none;
         }
         .col-applied {
             display: none;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .applications-title {
+            font-size: 26px;
+        }
+        .summary-metrics-card {
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 16px;
+        }
+        .metric-number {
+            font-size: 26px;
+        }
+        .table-header-row {
+            padding: 12px 16px;
+        }
+        .application-row {
+            padding: 16px;
+        }
+        .role-title {
+            font-size: 14px;
+        }
+        .status-pill {
+            padding: 3px 10px;
+            font-size: 11px;
         }
     }
 </style>
@@ -573,6 +619,12 @@ else
     private void OpenApplicationDetail(ApplicationRowViewModel app)
     {
         _selectedApp = app;
+    }
+
+    private void HandleApplicationKeyDown(KeyboardEventArgs args, ApplicationRowViewModel app)
+    {
+        if (args.Key is "Enter" or " ")
+            OpenApplicationDetail(app);
     }
 
     private void CloseModal()

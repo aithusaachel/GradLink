@@ -1,7 +1,7 @@
 @page "/employer/jobs"
 @layout GradLink.Client.Layout.EmployerLayout
 
-<PageTitle>Posted jobs – Gradly Employer</PageTitle>
+<PageTitle>Posted jobs – GradLink Employer</PageTitle>
 
 <div class="e-head">
   <div><h1>Posted jobs</h1><p>Create, publish and manage every open role.</p></div>
@@ -37,7 +37,7 @@
       </div>
       <span style="font-size:13px;color:#555a65">@j.Applicants applicants</span>
       <span><span class="pill @j.Status.ToLower()">@j.Status</span></span>
-      <span style="justify-self:end">→</span>
+      <span class="e-row-action" aria-label="View applicants"><Icon Name="chevron-right" Size="18" /></span>
     </a>
   }
 </div>

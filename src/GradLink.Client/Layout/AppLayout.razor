@@ -7,17 +7,28 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @implements IAsyncDisposable
 
+<a href="#main-content" class="skip-to-main-link">Skip to main content</a>
+
 <div class="layout-shell">
-    <!-- Left Sidebar -->
-    <aside class="sidebar">
+    <!-- Backdrop Overlay for Mobile Navigation Drawer -->
+    <div class="sidebar-backdrop @(_isMobileMenuOpen ? "active" : "")" @onclick="CloseMobileMenu" aria-hidden="true"></div>
+
+    <!-- Left Sidebar / Mobile Drawer -->
+    <aside class="sidebar @(_isMobileMenuOpen ? "mobile-open" : "")" role="navigation" aria-label="Main Navigation">
         <div>
-            <!-- Brand Logo -->
-            <a href="/graduate/dashboard" class="brand-link">
-                <div class="brand-icon">
-                    <div class="brand-icon-inner"></div>
-                </div>
-                <span class="brand-name">Gradly</span>
-            </a>
+            <!-- Brand Logo & Mobile Close -->
+            <div class="brand-row">
+                <a href="/graduate/dashboard" class="brand-link" @onclick="CloseMobileMenu">
+                    <div class="brand-icon">
+                        <div class="brand-icon-inner"></div>
+                    </div>
+                    <span class="brand-name">GradLink</span>
+                </a>
+
+                <button class="mobile-close-btn" @onclick="CloseMobileMenu" aria-label="Close menu">
+                    <Icon Name="x" Size="20" />
+                </button>
+            </div>
 
             <!-- Workspace Section -->
             <div class="nav-section">
@@ -28,37 +39,33 @@
                 <nav class="nav-list">
                     @if (IsEmployer)
                     {
-                        <a href="/employer/dashboard" class="nav-item @(IsActive("/employer/dashboard") ? "active" : "")">
+                        <a href="/employer/dashboard" class="nav-item @(IsActive("/employer/dashboard") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="home" Size="18" />
                             <span>Dashboard</span>
                         </a>
-                        <a href="/employer/jobs/new" class="nav-item @(IsActive("/employer/jobs/new") ? "active" : "")">
+                        <a href="/employer/jobs/new" class="nav-item @(IsActive("/employer/jobs/new") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="plus" Size="18" />
                             <span>Post a job</span>
                         </a>
-                        <a href="/employer/profile" class="nav-item @(IsActive("/employer/profile") ? "active" : "")">
+                        <a href="/employer/profile" class="nav-item @(IsActive("/employer/profile") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="building" Size="18" />
                             <span>Company profile</span>
                         </a>
                     }
                     else
                     {
-                        <a href="/graduate/dashboard" class="nav-item @(IsActive("/graduate/dashboard") ? "active" : "")">
+                        <a href="/graduate/dashboard" class="nav-item @(IsActive("/graduate/dashboard") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="home" Size="18" />
                             <span>Overview</span>
                         </a>
-                        <a href="/graduate/jobs" class="nav-item @(IsActive("/graduate/jobs") ? "active" : "")">
+                        <a href="/graduate/jobs" class="nav-item @(IsActive("/graduate/jobs") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="search" Size="18" />
                             <span>Discover jobs</span>
                         </a>
-                        <a href="/graduate/applications" class="nav-item @(IsActive("/graduate/applications") ? "active" : "")">
+                        <a href="/graduate/applications" class="nav-item @(IsActive("/graduate/applications") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="bag" Size="18" />
                             <span>My applications</span>
                             <span class="nav-badge">@(_stats?.TotalApplications > 0 ? _stats.TotalApplications : 4)</span>
-                        </a>
-                        <a href="/graduate/profile" class="nav-item @(IsActive("/graduate/profile") ? "active" : "")">
-                            <Icon Name="user" Size="18" />
-                            <span>My profile</span>
                         </a>
                     }
                 </nav>
@@ -77,14 +84,14 @@
                     <div class="strength-tag">PROFILE STRENGTH</div>
                     <div class="strength-title">You're almost there</div>
                     <div class="strength-desc">Add two projects to reach 100%.</div>
-                    <div class="strength-progress-bg">
+                    <div class="strength-progress-bg" role="progressbar" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100">
                         <div class="strength-progress-fill" style="width: 72%;"></div>
                     </div>
                 </div>
             }
 
             <!-- User Profile Footer -->
-            <div class="user-footer" @onclick="ToggleUserMenu">
+            <div class="user-footer" @onclick="ToggleUserMenu" @onkeydown="HandleUserFooterKeyDown" role="button" tabindex="0" aria-label="User Options">
                 <div class="user-avatar">
                     @GetUserInitials()
                 </div>
@@ -92,7 +99,7 @@
                     <div class="user-name">@GetDisplayName()</div>
                     <div class="user-role">@GetUserSubtitle()</div>
                 </div>
-                <button class="user-menu-btn" title="Options">
+                <button class="user-menu-btn" title="Options" aria-label="Open user options menu">
                     <Icon Name="dots" Size="16" />
                 </button>
             </div>
@@ -100,7 +107,7 @@
             @if (_showUserMenu)
             {
                 <div class="user-dropdown-menu">
-                    <a href="@(IsEmployer ? "/employer/profile" : "/graduate/profile")" class="user-dropdown-item">
+                    <a href="@(IsEmployer ? "/employer/profile" : "/graduate/profile")" class="user-dropdown-item" @onclick="CloseMobileMenu">
                         <Icon Name="user" Size="16" />
                         <span>View profile</span>
                     </a>
@@ -117,16 +124,31 @@
     <div class="main-wrapper">
         <!-- Top App Bar -->
         <header class="top-bar">
+            <!-- Left Side: Mobile Hamburger Button & Brand -->
+            <div class="top-bar-left">
+                <button class="mobile-hamburger-btn" @onclick="ToggleMobileMenu" aria-label="Open navigation menu">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <a href="/graduate/dashboard" class="mobile-brand-link">
+                    <span class="brand-name">GradLink</span>
+                </a>
+            </div>
+
+            <!-- Right Side: Actions -->
             <div class="top-bar-actions">
                 <!-- Role Switcher Segmented Control -->
-                <div class="role-switcher">
-                    <a href="/graduate/dashboard" class="role-btn @(!IsEmployer ? "active" : "")">Graduate</a>
-                    <a href="/employer/dashboard" class="role-btn @(IsEmployer ? "active" : "")">Employer</a>
+                <div class="role-switcher" role="tablist" aria-label="Role Switcher">
+                    <a href="/graduate/dashboard" class="role-btn @(!IsEmployer ? "active" : "")" role="tab" aria-selected="@(!IsEmployer ? "true" : "false")">Graduate</a>
+                    <a href="/employer/dashboard" class="role-btn @(IsEmployer ? "active" : "")" role="tab" aria-selected="@(IsEmployer ? "true" : "false")">Employer</a>
                 </div>
 
                 <!-- Notifications Dropdown Trigger -->
                 <div class="notification-container">
-                    <button class="notification-btn" @onclick="ToggleNotifications" title="Notifications">
+                    <button class="notification-btn" @onclick="ToggleNotifications" title="Notifications" aria-label="Notifications, @_unreadCount unread">
                         <Icon Name="bell" Size="18" />
                         @if (_unreadCount > 0)
                         {
@@ -136,7 +158,7 @@
 
                     @if (_showNotifications)
                     {
-                        <div class="notification-popover">
+                        <div class="notification-popover" role="region" aria-label="Notifications">
                             <div class="notification-popover-header">
                                 <span class="notification-popover-title">Notifications</span>
                                 @if (_hubConnection?.State == HubConnectionState.Connected)
@@ -172,19 +194,52 @@
         </header>
 
         <!-- Page Body Content -->
-        <main class="page-content">
+        <main id="main-content" class="page-content">
             @Body
         </main>
     </div>
 </div>
 
 <style>
+    /* Accessibility Skip Link */
+    .skip-to-main-link {
+        position: absolute;
+        top: -100px;
+        left: 16px;
+        background: #4F46E5;
+        color: #FFFFFF;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 9999;
+        transition: top 0.2s ease;
+    }
+    .skip-to-main-link:focus {
+        top: 16px;
+    }
+
     .layout-shell {
         display: flex;
         min-height: 100vh;
         background-color: #F8F9FB;
         color: #121316;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+
+    /* Mobile Backdrop */
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 24, 39, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 35;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
     }
 
     /* Sidebar */
@@ -201,14 +256,20 @@
         bottom: 0;
         left: 0;
         z-index: 40;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    .brand-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px 24px 10px;
+    }
     .brand-link {
         display: flex;
         align-items: center;
         gap: 12px;
         text-decoration: none;
-        padding: 0 10px 24px 10px;
     }
     .brand-icon {
         width: 32px;
@@ -233,8 +294,18 @@
         letter-spacing: -0.02em;
     }
 
+    .mobile-close-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: #6B7280;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 8px;
+    }
+
     .nav-section {
-        margin-top: 4px;
+        margin-top: 8px;
     }
     .nav-section-title {
         font-size: 11px;
@@ -242,12 +313,12 @@
         letter-spacing: 0.08em;
         color: #9CA3AF;
         padding: 0 12px;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
     }
     .nav-list {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 8px;
     }
     .nav-item {
         display: flex;
@@ -259,12 +330,16 @@
         font-weight: 500;
         color: #4B5563;
         text-decoration: none;
-        transition: all var(--ease-standard);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         position: relative;
+        min-height: 48px;
     }
     .nav-item:hover {
         background-color: #F3F4F6;
         color: #111827;
+    }
+    .nav-item:active {
+        transform: scale(0.98);
     }
     .nav-item.active {
         background-color: #FFFFFF;
@@ -348,7 +423,7 @@
         padding: 6px 4px;
         border-radius: 12px;
         cursor: pointer;
-        transition: background-color var(--ease-standard);
+        transition: background-color 0.2s ease;
     }
     .user-footer:hover {
         background-color: #F9FAFB;
@@ -410,6 +485,7 @@
         flex-direction: column;
         gap: 2px;
         z-index: 50;
+        animation: popoverFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .user-dropdown-item {
         display: flex;
@@ -438,6 +514,7 @@
         display: flex;
         flex-direction: column;
         background-color: #F8F9FB;
+        transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* Top Bar */
@@ -446,14 +523,42 @@
         padding: 0 44px;
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         position: relative;
         z-index: 30;
     }
+
+    .top-bar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .mobile-hamburger-btn {
+        display: none;
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        color: #111827;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .mobile-hamburger-btn:hover {
+        background-color: #F9FAFB;
+    }
+    .mobile-brand-link {
+        display: none;
+        text-decoration: none;
+    }
+
     .top-bar-actions {
         display: flex;
         align-items: center;
         gap: 16px;
+        margin-left: auto;
     }
 
     .role-switcher {
@@ -470,7 +575,7 @@
         font-weight: 500;
         color: #6B7280;
         text-decoration: none;
-        transition: all var(--ease-standard);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .role-btn.active {
         background: #FFFFFF;
@@ -494,20 +599,31 @@
         justify-content: center;
         cursor: pointer;
         position: relative;
-        transition: all var(--ease-standard);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .notification-btn:hover {
         background: #F9FAFB;
         color: #111827;
     }
+    .notification-btn:active {
+        transform: scale(0.95);
+    }
     .notification-indicator {
         position: absolute;
         top: 8px;
         right: 9px;
-        width: 7px;
-        height: 7px;
+        width: 8px;
+        height: 8px;
         background-color: #EF4444;
         border-radius: 50%;
+        border: 1.5px solid #FFFFFF;
+        animation: pulseIndicator 2s infinite;
+    }
+
+    @@keyframes pulseIndicator {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
 
     .notification-popover {
@@ -521,7 +637,13 @@
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.10);
         z-index: 100;
         overflow: hidden;
+        animation: popoverFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
+    @@keyframes popoverFade {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     .notification-popover-header {
         padding: 14px 18px;
         border-bottom: 1px solid #ECEEF2;
@@ -556,7 +678,7 @@
         display: flex;
         align-items: flex-start;
         gap: 12px;
-        transition: background-color var(--ease-standard);
+        transition: background-color 0.2s ease;
     }
     .notification-item.unread {
         background-color: #F5F7FF;
@@ -594,6 +716,7 @@
         width: 100%;
     }
 
+    /* Responsive Breakpoints */
     @@media (max-width: 1024px) {
         .sidebar {
             width: 220px;
@@ -604,6 +727,50 @@
         .top-bar, .page-content {
             padding-left: 24px;
             padding-right: 24px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .sidebar {
+            transform: translateX(-100%);
+            width: 280px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+        .mobile-close-btn {
+            display: flex;
+        }
+        .main-wrapper {
+            margin-left: 0;
+        }
+        .mobile-hamburger-btn {
+            display: flex;
+        }
+        .mobile-brand-link {
+            display: block;
+        }
+        .top-bar {
+            padding: 0 16px;
+        }
+        .page-content {
+            padding: 0 16px 32px 16px;
+        }
+        .notification-popover {
+            right: -10px;
+            width: calc(100vw - 32px);
+            max-width: 340px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .role-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .top-bar-actions {
+            gap: 8px;
         }
     }
 </style>
@@ -622,12 +789,15 @@
     private int _unreadCount => _notifications.Count(n => !n.IsRead);
     private bool _showNotifications = false;
     private bool _showUserMenu = false;
+    private bool _isMobileMenuOpen = false;
 
     private GraduateProfileDto? _profile;
     private DashboardStatsDto? _stats;
 
     protected override async Task OnInitializedAsync()
     {
+        Navigation.LocationChanged += OnLocationChanged;
+
         // Load initial profile & stats
         try
         {
@@ -639,7 +809,7 @@
         }
         catch {}
 
-        // Mock existing notification for visual fidelity
+        // Seed initial notifications for visual demo
         _notifications.Add(new NotificationDto 
         { 
             Message = "Your application for Junior Product Designer has been shortlisted.", 
@@ -677,6 +847,14 @@
         }
     }
 
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        CloseMobileMenu();
+        _showNotifications = false;
+        _showUserMenu = false;
+        InvokeAsync(StateHasChanged);
+    }
+
     private string GetDisplayName()
     {
         if (!string.IsNullOrWhiteSpace(_profile?.FullName))
@@ -702,6 +880,18 @@
         return "AM";
     }
 
+    private void ToggleMobileMenu()
+    {
+        _isMobileMenuOpen = !_isMobileMenuOpen;
+        _showNotifications = false;
+        _showUserMenu = false;
+    }
+
+    private void CloseMobileMenu()
+    {
+        _isMobileMenuOpen = false;
+    }
+
     private void ToggleNotifications()
     {
         _showNotifications = !_showNotifications;
@@ -721,6 +911,12 @@
         _showNotifications = false;
     }
 
+    private void HandleUserFooterKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ")
+            ToggleUserMenu();
+    }
+
     private async Task SignOut()
     {
         await LocalStorage.RemoveItemAsync("authToken");
@@ -730,6 +926,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Navigation.LocationChanged -= OnLocationChanged;
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
