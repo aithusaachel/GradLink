@@ -1,54 +1,72 @@
 @page "/employer/dashboard"
-@layout GradLink.Client.Layout.AppLayout
-@inject ApiClient Api
+@layout GradLink.Client.Layout.EmployerLayout
 
-@if (_isLoading)
-{
-    <div class="p-48 text-center text-body color-secondary">Loading...</div>
-}
-else
-{
-    <div class="mb-64 mt-48">
-        <h1 class="text-display mb-8">@_stats?.TotalApplications</h1>
-        <p class="text-h3 color-secondary">Total Applicants</p>
+<PageTitle>Overview – Gradly Employer</PageTitle>
+
+<div class="e-head">
+  <div>
+    <div class="e-eyebrow">Hiring overview</div>
+    <h1>Build your next great team.</h1>
+    <p>Here’s what’s happening across your open roles.</p>
+  </div>
+  <a class="e-btn" href="/employer/jobs"><span style="font-size:18px;line-height:1">+</span> Post a new job</a>
+</div>
+
+<section class="e-stats">
+  @foreach (var s in stats)
+  {
+    <div class="e-card e-stat">
+      <div class="e-stat-top">@s.Label<span class="dot" style="background:@s.Color"></span></div>
+      <strong>@s.Value</strong><small>@s.Note</small>
     </div>
+  }
+</section>
 
-    <section>
-        <div class="flex items-center justify-between mb-24">
-            <h2 class="text-h2">Active Postings</h2>
-            <a href="/employer/jobs/new" style="color: var(--color-accent); font-weight: 500;">Post new</a>
-        </div>
+<section class="e-grid">
+  <div class="e-card">
+    <div class="e-phead">
+      <div><h3>Active roles</h3><p>Performance at a glance.</p></div>
+      <a class="e-textlink" href="/employer/jobs">Manage all</a>
+    </div>
+    @foreach (var r in roles)
+    {
+      <a class="e-role" href="/employer/applicants">
+        <div class="jicon @r.Tone"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg></div>
+        <div><b>@r.Title</b><small>@r.Closes</small></div>
+        <div><span class="num">@r.Applicants</span><br /><small>Applicants</small></div>
+        <div><span class="num">@r.New</span><br /><small>New</small></div>
+        <span style="justify-self:end">→</span>
+      </a>
+    }
+  </div>
 
-        <div class="flex flex-col">
-            @if (_activeJobs != null)
-            {
-                foreach (var job in _activeJobs)
-                {
-                    <a href="/employer/jobs/@job.Id/applicants" class="ios-list-item">
-                        <div class="flex flex-col gap-8">
-                            <h3 class="text-h3">@job.Title</h3>
-                            <div class="flex items-center gap-16 color-secondary">
-                                <span class="flex items-center gap-4"><Icon Name="users" Size="16" /> @job.ApplicationCount applicants</span>
-                                <span class="flex items-center gap-4"><Icon Name="clock" Size="16" /> Posted @((int)(DateTime.UtcNow - job.PostedDate).TotalDays)d ago</span>
-                            </div>
-                        </div>
-                        <Icon Name="chevron-right" Size="20" CssClass="color-secondary" />
-                    </a>
-                }
-            }
-        </div>
-    </section>
-}
+  <div class="e-card e-activity">
+    <h3>Recent activity</h3>
+    @foreach (var a in activity)
+    {
+      <div class="e-act"><span class="dot" style="background:@a.Color"></span><div><b>@a.Text</b><small>@a.Time</small></div></div>
+    }
+  </div>
+</section>
 
 @code {
-    private bool _isLoading = true;
-    private DashboardStatsDto? _stats;
-    private List<JobListingDto>? _activeJobs;
+  record Stat(string Label, int Value, string Note, string Color);
+  record Role(string Title, string Closes, int Applicants, int New, string Tone);
+  record Activity(string Text, string Time, string Color);
 
-    protected override async Task OnInitializedAsync()
-    {
-        _stats = await Api.GetDashboardStatsAsync();
-        _activeJobs = await Api.GetEmployerJobsAsync();
-        _isLoading = false;
-    }
+  // TODO: replace with data from GradLink.API (inject a service from /Services)
+  Stat[] stats = {
+    new("Active jobs", 4, "1 closes this week", "#5b45ee"),
+    new("Total applicants", 86, "+18 this week", "#f0913a"),
+    new("To review", 12, "Across 3 roles", "#3aa675"),
+    new("Interviews", 5, "Next on Thursday", "#2f6fdb") };
+  Role[] roles = {
+    new("Product Designer", "Closes in 12d", 32, 8, "c-purple"),
+    new("Frontend Engineer", "Closes in 8d", 28, 3, "c-blue"),
+    new("Marketing Associate", "Closes in 21d", 17, 1, "c-red") };
+  Activity[] activity = {
+    new("Maya submitted an application", "1h ago", "#5b45ee"),
+    new("Theo moved to interview", "2h ago", "#3aa675"),
+    new("Lena updated her portfolio", "3h ago", "#f0913a"),
+    new("Sam accepted your invite", "4h ago", "#2f6fdb") };
 }
