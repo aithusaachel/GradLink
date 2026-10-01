@@ -188,4 +188,27 @@ public class ApiClient
         await PrepareBearerTokenAsync();
         return await _http.GetFromJsonAsync<DashboardStatsDto>("api/profile/stats");
     }
+
+    public async Task<GraduateProfileDto?> UpdateGraduateProfileAsync(UpdateGraduateProfileDto dto)
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.PutAsJsonAsync("api/profile/graduate", dto);
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<GraduateProfileDto>();
+        return null;
+    }
+
+    public async Task<bool> UploadCvAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile file)
+    {
+        await PrepareBearerTokenAsync();
+        using var content = new MultipartFormDataContent();
+        using var stream = file.OpenReadStream(5 * 1024 * 1024);
+        using var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrEmpty(file.ContentType) ? "application/pdf" : file.ContentType);
+        content.Add(streamContent, "file", file.Name);
+
+        var response = await _http.PostAsync("api/files/cv", content);
+        return response.IsSuccessStatusCode;
+    }
 }
+
