@@ -1,47 +1,338 @@
 @page "/employer/applicants"
 @layout GradLink.Client.Layout.EmployerLayout
+@inject GradLink.Client.Services.ApiClient Api
+@inject NavigationManager Navigation
+@using GradLink.Shared.DTOs
+@using GradLink.Shared.Enums
 
 <PageTitle>Applicants – GradLink Employer</PageTitle>
 
 <div class="e-head">
-  <div><h1>Applicant pipeline</h1><p>Review candidates and keep your hiring process moving.</p></div>
-  <button class="e-btn"><svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/></svg> Talent pool</button>
+  <div>
+    <h1>Applicant pipeline</h1>
+    <p>Review candidates, inspect CVs, and move applicants through your hiring stages.</p>
+  </div>
+  <div style="display: flex; gap: 12px; align-items: center;">
+    @if (employerJobs.Count > 0)
+    {
+      <select class="app-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;" @onchange="OnJobFilterChanged" value="@(selectedJobId?.ToString() ?? "")">
+        <option value="">All active roles (@allApplicants.Count applicants)</option>
+        @foreach (var j in employerJobs)
+        {
+          <option value="@j.Id">@j.Title</option>
+        }
+      </select>
+    }
+  </div>
 </div>
 
-<div class="e-board">
-  @foreach (var (key, label) in columns)
-  {
-    var list = people.Where(p => p.Status == key).ToList();
-    <section class="e-col">
-      <h3>@label <span class="e-count">@list.Count</span></h3>
-      @foreach (var p in list)
-      {
-        <article class="e-acard">
-          <div class="e-avatar @p.Tone">@p.Initials</div>
-          <b>@p.Name</b>
-          <small>@p.Role · @p.Match% match</small>
-          <div class="e-foot">
-            <span class="pill @(key == "new" ? "portfolio" : key)">@p.Tag</span>
-            <small>@p.When</small>
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+  <div style="margin-bottom: 16px; padding: 10px 14px; border-radius: 8px; background: @(isError ? "#FEE2E2" : "#DCFCE7"); color: @(isError ? "#991B1B" : "#166534"); font-size: 13px;">
+    @statusMessage
+  </div>
+}
+
+@if (isLoading)
+{
+  <div style="padding: 48px; text-align: center; color: #64748b;">
+    Loading candidate pipeline...
+  </div>
+}
+else if (allApplicants.Count == 0)
+{
+  <div class="e-card" style="padding: 48px; text-align: center; color: #64748b;">
+    <svg style="width: 48px; height: 48px; margin: 0 auto 12px auto; color: #94a3b8;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2.2.6 3.5 2.6 3.5 5.5"/></svg>
+    <h3 style="font-size: 18px; color: #0f172a; margin-bottom: 6px;">No applicants yet</h3>
+    <p>When graduates apply to your open roles, they will appear here in your pipeline.</p>
+  </div>
+}
+else
+{
+  <div class="e-board">
+    @foreach (var col in pipelineColumns)
+    {
+      var colApps = DisplayedApplicants.Where(a => a.Status == col.Status).ToList();
+      <section class="e-col">
+        <h3>@col.Label <span class="e-count">@colApps.Count</span></h3>
+        @if (colApps.Count == 0)
+        {
+          <div style="padding: 20px 12px; text-align: center; font-size: 12px; color: #94a3b8; border: 1px dashed #cbd5e1; border-radius: 12px;">
+            No candidates
           </div>
-        </article>
+        }
+        else
+        {
+          @foreach (var p in colApps)
+          {
+            <article class="e-acard" @onclick="() => SelectApplicant(p)" style="cursor: pointer; position: relative;">
+              <div class="e-avatar @p.Tone">@p.Initials</div>
+              <b>@p.GraduateName</b>
+              <small>@p.JobTitle</small>
+              @if (!string.IsNullOrWhiteSpace(p.GraduateUniversity) || !string.IsNullOrWhiteSpace(p.GraduateDegree))
+              {
+                <small style="color: #64748b; font-size: 11px;">@(p.GraduateDegree ?? p.GraduateUniversity)</small>
+              }
+              <div class="e-foot" style="margin-top: 8px;">
+                <span class="pill @GetPillClass(p.Status)">@p.Status.ToString()</span>
+                <small>@FormatDate(p.AppliedDate)</small>
+              </div>
+            </article>
+          }
+        }
+      </section>
+    }
+  </div>
+}
+
+@if (selectedApp != null)
+{
+  <div style="position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px;" @onclick="CloseModal">
+    <div class="e-card" style="max-width: 520px; width: 100%; background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);" @onclick:stopPropagation="true">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div class="e-avatar @selectedApp.Tone" style="width: 44px; height: 44px; font-size: 16px;">@selectedApp.Initials</div>
+          <div>
+            <h3 style="margin: 0; font-size: 18px; font-weight: 700;">@selectedApp.GraduateName</h3>
+            <span style="font-size: 13px; color: #64748b;">Applying for <b>@selectedApp.JobTitle</b></span>
+          </div>
+        </div>
+        <button class="e-ghost" style="padding: 4px 8px; font-size: 16px;" @onclick="CloseModal">✕</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; font-size: 13px;">
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase;">University</span>
+          <div>@(string.IsNullOrWhiteSpace(selectedApp.GraduateUniversity) ? "Not specified" : selectedApp.GraduateUniversity)</div>
+        </div>
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase;">Degree</span>
+          <div>@(string.IsNullOrWhiteSpace(selectedApp.GraduateDegree) ? "Not specified" : selectedApp.GraduateDegree)</div>
+        </div>
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase;">Email</span>
+          <div>@(string.IsNullOrWhiteSpace(selectedApp.GraduateEmail) ? "Not provided" : selectedApp.GraduateEmail)</div>
+        </div>
+        <div>
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase;">Applied</span>
+          <div>@selectedApp.AppliedDate.ToString("dd MMM yyyy")</div>
+        </div>
+      </div>
+
+      @if (!string.IsNullOrWhiteSpace(selectedApp.CoverLetter))
+      {
+        <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 8px;">
+          <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Cover Note</span>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #334155;">@selectedApp.CoverLetter</p>
+        </div>
       }
-    </section>
-  }
-</div>
+
+      @if (selectedApp.HasCv)
+      {
+        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; background: #EEF2FF; padding: 10px 14px; border-radius: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #4338CA;">
+            <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Candidate CV attached
+          </div>
+          <a href="@Api.GetCvDownloadUrl(selectedApp.GraduateId)" target="_blank" class="e-btn" style="padding: 4px 12px; font-size: 12px; text-decoration: none;">
+            Download CV
+          </a>
+        </div>
+      }
+
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <span style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px;">Change pipeline stage:</span>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          @foreach (var s in Enum.GetValues<ApplicationStatus>())
+          {
+            <button class="@(selectedApp.Status == s ? "e-btn" : "e-ghost")"
+                    style="padding: 6px 12px; font-size: 12px;"
+                    @onclick="() => UpdateCandidateStatus(selectedApp, s)"
+                    disabled="@isUpdatingStatus">
+              @s.ToString()
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
 
 @code {
-  record Applicant(string Name, string Initials, string Role, int Match, string Status, string Tag, string When, string Tone);
+  [SupplyParameterFromQuery]
+  public int? JobId { get; set; }
 
-  (string, string)[] columns = { ("new", "New"), ("review", "In review"), ("interview", "Interview") };
+  record PipelineColumn(ApplicationStatus Status, string Label);
 
-  // Status = "new" | "review" | "interview"  (change it to move a card between columns)
-  // TODO: load from GradLink.API
-  List<Applicant> people = new() {
-    new("Maya Chen", "MC", "Product Designer", 94, "new", "Portfolio", "2d ago", "c-purple"),
-    new("Jordan Ellis", "JE", "Product Designer", 91, "new", "Portfolio", "2d ago", "c-red"),
-    new("Aisha Patel", "AP", "Product Designer", 88, "new", "Portfolio", "2d ago", "c-green"),
-    new("Theo James", "TJ", "Frontend Engineer", 91, "review", "Review", "3d ago", "c-green"),
-    new("Lena Fischer", "LF", "Frontend Engineer", 87, "review", "Review", "3d ago", "c-blue"),
-    new("Sam King", "SK", "Product Designer", 89, "interview", "Fri, 10:30", "Video", "c-yellow") };
+  private readonly PipelineColumn[] pipelineColumns = new[]
+  {
+    new PipelineColumn(ApplicationStatus.Pending, "New"),
+    new PipelineColumn(ApplicationStatus.Reviewed, "In review"),
+    new PipelineColumn(ApplicationStatus.Shortlisted, "Shortlisted"),
+    new PipelineColumn(ApplicationStatus.Accepted, "Accepted / Interview"),
+    new PipelineColumn(ApplicationStatus.Rejected, "Rejected")
+  };
+
+  private bool isLoading = true;
+  private bool isUpdatingStatus = false;
+  private string statusMessage = "";
+  private bool isError = false;
+
+  private List<JobListingDto> employerJobs = new();
+  private List<ApplicationDtoWrapper> allApplicants = new();
+  private int? selectedJobId;
+  private ApplicationDtoWrapper? selectedApp;
+
+  private IEnumerable<ApplicationDtoWrapper> DisplayedApplicants =>
+    selectedJobId.HasValue
+      ? allApplicants.Where(a => a.JobListingId == selectedJobId.Value)
+      : allApplicants;
+
+  protected override async Task OnInitializedAsync()
+  {
+    selectedJobId = JobId;
+    await LoadApplicantsAsync();
+  }
+
+  private async Task LoadApplicantsAsync()
+  {
+    isLoading = true;
+    try
+    {
+      employerJobs = await Api.GetEmployerJobsAsync() ?? new List<JobListingDto>();
+      var appsList = new List<ApplicationDtoWrapper>();
+      var tones = new[] { "c-purple", "c-blue", "c-green", "c-red", "c-yellow" };
+      var idx = 0;
+
+      foreach (var job in employerJobs)
+      {
+        var applicants = await Api.GetJobApplicantsAsync(job.Id);
+        if (applicants != null)
+        {
+          foreach (var a in applicants)
+          {
+            var initials = GetInitials(a.GraduateName);
+            appsList.Add(new ApplicationDtoWrapper(a, initials, tones[idx % tones.Length]));
+            idx++;
+          }
+        }
+      }
+
+      allApplicants = appsList;
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Failed to load pipeline: " + ex.Message;
+      isError = true;
+    }
+    finally
+    {
+      isLoading = false;
+    }
+  }
+
+  private void OnJobFilterChanged(ChangeEventArgs e)
+  {
+    var val = e.Value?.ToString();
+    selectedJobId = int.TryParse(val, out var id) ? id : null;
+  }
+
+  private void SelectApplicant(ApplicationDtoWrapper app)
+  {
+    selectedApp = app;
+  }
+
+  private void CloseModal()
+  {
+    selectedApp = null;
+  }
+
+  private async Task UpdateCandidateStatus(ApplicationDtoWrapper app, ApplicationStatus newStatus)
+  {
+    isUpdatingStatus = true;
+    try
+    {
+      var dto = new UpdateApplicationStatusDto
+      {
+        ApplicationId = app.Id,
+        NewStatus = newStatus
+      };
+
+      var updated = await Api.UpdateApplicationStatusAsync(dto);
+      if (updated != null)
+      {
+        app.Status = updated.Status;
+        statusMessage = $"Updated {app.GraduateName} to {newStatus}.";
+        isError = false;
+      }
+      else
+      {
+        statusMessage = "Could not update status.";
+        isError = true;
+      }
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Error updating status: " + ex.Message;
+      isError = true;
+    }
+    finally
+    {
+      isUpdatingStatus = false;
+    }
+  }
+
+  private static string GetInitials(string fullName)
+  {
+    if (string.IsNullOrWhiteSpace(fullName)) return "GR";
+    var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+    return parts[0][0].ToString().ToUpper();
+  }
+
+  private static string FormatDate(DateTime dt)
+  {
+    var diff = DateTime.UtcNow - dt;
+    if (diff.TotalMinutes < 60) return "Just now";
+    if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+    if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+    return dt.ToString("dd MMM");
+  }
+
+  private static string GetPillClass(ApplicationStatus status) => status switch
+  {
+    ApplicationStatus.Pending => "portfolio",
+    ApplicationStatus.Reviewed => "review",
+    ApplicationStatus.Shortlisted => "shortlisted",
+    ApplicationStatus.Accepted => "interview",
+    ApplicationStatus.Rejected => "rejected",
+    _ => "portfolio"
+  };
+
+  public class ApplicationDtoWrapper
+  {
+    public ApplicationDto Dto { get; }
+    public string Initials { get; }
+    public string Tone { get; }
+
+    public int Id => Dto.Id;
+    public int JobListingId => Dto.JobListingId;
+    public string JobTitle => Dto.JobTitle;
+    public string GraduateId => Dto.GraduateId;
+    public string GraduateName => Dto.GraduateName;
+    public string? GraduateEmail => Dto.GraduateEmail;
+    public string? GraduateUniversity => Dto.GraduateUniversity;
+    public string? GraduateDegree => Dto.GraduateDegree;
+    public ApplicationStatus Status { get => Dto.Status; set => Dto.Status = value; }
+    public DateTime AppliedDate => Dto.AppliedDate;
+    public string? CoverLetter => Dto.CoverLetter;
+    public bool HasCv => Dto.HasCv;
+
+    public ApplicationDtoWrapper(ApplicationDto dto, string initials, string tone)
+    {
+      Dto = dto;
+      Initials = initials;
+      Tone = tone;
+    }
+  }
 }

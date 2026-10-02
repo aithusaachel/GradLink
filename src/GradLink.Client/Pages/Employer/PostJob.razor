@@ -1,5 +1,9 @@
 @page "/employer/jobs"
 @layout GradLink.Client.Layout.EmployerLayout
+@inject GradLink.Client.Services.ApiClient Api
+@inject NavigationManager Navigation
+@using GradLink.Shared.DTOs
+@using GradLink.Shared.Enums
 
 <PageTitle>Posted jobs – GradLink Employer</PageTitle>
 
@@ -8,59 +12,227 @@
   <button class="e-btn" @onclick="() => showForm = !showForm"><span style="font-size:18px;line-height:1">+</span> Create job</button>
 </div>
 
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+  <div style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; background: @(isError ? "#FEE2E2" : "#DCFCE7"); color: @(isError ? "#991B1B" : "#166534"); font-size: 14px;">
+    @statusMessage
+  </div>
+}
+
 @if (showForm)
 {
   <div class="e-card e-form">
-    <h3>New job</h3><span class="sub">Jobs with salary ranges get 34% more applications.</span>
+    <h3>New job</h3><span class="sub">Jobs with clear descriptions and salary ranges get 34% more applications.</span>
     <div class="e-fields">
-      <label>Job title<input @bind="title" placeholder="e.g. Junior Data Analyst" /></label>
-      <label>Location<input @bind="location" placeholder="e.g. Accra, Ghana" /></label>
+      <label>Job title *<input @bind="title" placeholder="e.g. Junior Data Analyst" required /></label>
+      <label>Location *<input @bind="location" placeholder="e.g. Accra, Ghana or Remote" required /></label>
+      <label>Industry *
+        <select @bind="industry">
+          <option value="Technology">Technology</option>
+          <option value="Finance">Finance</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Design">Design</option>
+          <option value="Marketing">Marketing</option>
+        </select>
+      </label>
+      <label>Experience level
+        <select @bind="experienceLevel">
+          <option value="@ExperienceLevel.Entry">Entry Level</option>
+          <option value="@ExperienceLevel.Junior">Junior</option>
+          <option value="@ExperienceLevel.Mid">Mid Level</option>
+          <option value="@ExperienceLevel.Senior">Senior</option>
+        </select>
+      </label>
       <label>Salary range<input @bind="salary" placeholder="e.g. GHS 4,000 – 6,000" /></label>
       <label>Closing date<input type="date" @bind="closes" /></label>
     </div>
-    <label style="margin-top:16px">Description<textarea @bind="description"></textarea></label>
+    <label style="margin-top:16px">Description *<textarea @bind="description" placeholder="Describe key responsibilities and qualifications..." required></textarea></label>
     <div style="display:flex;gap:10px;margin-top:18px">
-      <button class="e-btn" @onclick='() => Save("Live")'>Publish</button>
-      <button class="e-ghost" @onclick='() => Save("Draft")'>Save as draft</button>
+      <button class="e-btn" @onclick="SaveJob" disabled="@isSubmitting">@(isSubmitting ? "Publishing..." : "Publish role")</button>
+      <button class="e-ghost" @onclick="() => showForm = false" disabled="@isSubmitting">Cancel</button>
     </div>
   </div>
 }
 
 <div class="e-card e-table">
-  <div class="e-trow th"><span>Job</span><span>Applicants</span><span>Status</span><span></span></div>
-  @foreach (var j in jobs)
+  <div class="e-trow th"><span>Job</span><span>Applicants</span><span>Status</span><span>Action</span></div>
+  @if (isLoading)
   {
-    <a class="e-trow" href="/employer/applicants">
-      <div class="job">
-        <div class="jicon @j.Tone"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg></div>
-        <div><b>@j.Title</b><small>@j.Posted</small></div>
+    <div style="padding: 24px; text-align: center; color: #64748b;">Loading jobs...</div>
+  }
+  else if (jobs.Count == 0)
+  {
+    <div style="padding: 32px; text-align: center; color: #64748b;">
+      No posted jobs found. Click "Create job" above to post your first role.
+    </div>
+  }
+  else
+  {
+    @foreach (var j in jobs)
+    {
+      <div class="e-trow" style="cursor: default;">
+        <a class="job" href="@($"/employer/applicants?jobId={j.Id}")" style="text-decoration: none; color: inherit;">
+          <div class="jicon @j.Tone"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg></div>
+          <div><b>@j.Title</b><small>@j.Posted · @j.Location</small></div>
+        </a>
+        <span style="font-size:13px;color:#555a65">
+          <a href="@($"/employer/applicants?jobId={j.Id}")" style="color: inherit; text-decoration: underline;">
+            @j.Applicants @(j.Applicants == 1 ? "applicant" : "applicants")
+          </a>
+        </span>
+        <span><span class="pill @(j.Status == "Active" ? "live" : "draft")">@j.Status</span></span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <a href="@($"/employer/applicants?jobId={j.Id}")" class="e-ghost" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">View</a>
+          <button class="e-ghost" style="padding: 4px 10px; font-size: 12px; color: #DC2626;" @onclick="() => DeleteJob(j.Id)">Delete</button>
+        </div>
       </div>
-      <span style="font-size:13px;color:#555a65">@j.Applicants applicants</span>
-      <span><span class="pill @j.Status.ToLower()">@j.Status</span></span>
-      <span class="e-row-action" aria-label="View applicants"><Icon Name="chevron-right" Size="18" /></span>
-    </a>
+    }
   }
 </div>
 
 @code {
-  record Job(string Title, string Posted, int Applicants, string Status, string Tone);
+  record JobViewModel(int Id, string Title, string Location, string Posted, int Applicants, string Status, string Tone);
 
   bool showForm;
-  string title = "", location = "", salary = "", description = "";
-  DateTime? closes;
+  bool isLoading = true;
+  bool isSubmitting = false;
+  string statusMessage = "";
+  bool isError = false;
 
-  // TODO: load/save through GradLink.API
-  List<Job> jobs = new() {
-    new("Junior Product Designer", "Posted 2 days ago", 32, "Live", "c-purple"),
-    new("Graduate Frontend Engineer", "Posted 5 days ago", 28, "Live", "c-blue"),
-    new("Marketing Associate", "Posted 8 days ago", 17, "Live", "c-red"),
-    new("Data Analyst", "Posted 11 days ago", 9, "Draft", "c-green") };
+  string title = "", location = "Accra, Ghana", industry = "Technology", salary = "", description = "";
+  ExperienceLevel experienceLevel = ExperienceLevel.Entry;
+  DateTime? closes = DateTime.UtcNow.AddDays(30);
 
-  void Save(string status)
+  List<JobViewModel> jobs = new();
+
+  protected override async Task OnInitializedAsync()
   {
-    if (string.IsNullOrWhiteSpace(title)) return;
-    jobs.Insert(0, new Job(title, "Posted just now", 0, status, "c-yellow"));
-    title = location = salary = description = "";
-    showForm = false;
+    await LoadJobsAsync();
+  }
+
+  private async Task LoadJobsAsync()
+  {
+    isLoading = true;
+    try
+    {
+      var liveJobs = await Api.GetEmployerJobsAsync() ?? new List<JobListingDto>();
+      var tones = new[] { "c-purple", "c-blue", "c-red", "c-green" };
+
+      jobs = liveJobs.Select((j, idx) => new JobViewModel(
+        j.Id,
+        j.Title,
+        j.Location,
+        FormatPostedDate(j.PostedDate),
+        j.ApplicationCount,
+        j.IsActive ? "Active" : "Closed",
+        tones[idx % tones.Length]
+      )).ToList();
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Failed to load jobs: " + ex.Message;
+      isError = true;
+    }
+    finally
+    {
+      isLoading = false;
+    }
+  }
+
+  private async Task SaveJob()
+  {
+    if (string.IsNullOrWhiteSpace(title))
+    {
+      statusMessage = "Please enter a job title.";
+      isError = true;
+      return;
+    }
+
+    if (string.IsNullOrWhiteSpace(location))
+    {
+      statusMessage = "Please enter a job location.";
+      isError = true;
+      return;
+    }
+
+    if (string.IsNullOrWhiteSpace(description))
+    {
+      statusMessage = "Please enter a job description.";
+      isError = true;
+      return;
+    }
+
+    isSubmitting = true;
+    statusMessage = "";
+
+    try
+    {
+      var dto = new CreateJobDto
+      {
+        Title = title.Trim(),
+        Description = description.Trim(),
+        Location = location.Trim(),
+        Industry = industry,
+        SalaryRange = string.IsNullOrWhiteSpace(salary) ? null : salary.Trim(),
+        Deadline = closes,
+        ExperienceLevel = experienceLevel
+      };
+
+      var created = await Api.PostJobAsync(dto);
+      if (created != null)
+      {
+        statusMessage = "Job posted successfully!";
+        isError = false;
+        title = salary = description = "";
+        showForm = false;
+        await LoadJobsAsync();
+      }
+      else
+      {
+        statusMessage = "Failed to post job. Please ensure all required fields are filled.";
+        isError = true;
+      }
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Error posting job: " + ex.Message;
+      isError = true;
+    }
+    finally
+    {
+      isSubmitting = false;
+    }
+  }
+
+  private async Task DeleteJob(int id)
+  {
+    try
+    {
+      var success = await Api.DeleteJobAsync(id);
+      if (success)
+      {
+        statusMessage = "Job removed successfully.";
+        isError = false;
+        await LoadJobsAsync();
+      }
+      else
+      {
+        statusMessage = "Failed to delete job.";
+        isError = true;
+      }
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Error deleting job: " + ex.Message;
+      isError = true;
+    }
+  }
+
+  private static string FormatPostedDate(DateTime dt)
+  {
+    var days = (int)(DateTime.UtcNow - dt).TotalDays;
+    if (days == 0) return "Posted today";
+    if (days == 1) return "Posted 1 day ago";
+    return $"Posted {days} days ago";
   }
 }

@@ -29,7 +29,28 @@ public sealed class GradLinkApiFactory : WebApplicationFactory<Program>
         {
             services.Configure<HubOptions>(options => options.AddFilter(HubConnections));
             services.AddControllers().AddApplicationPart(typeof(GradLinkApiFactory).Assembly);
+            services.AddTransient<Microsoft.AspNetCore.Hosting.IStartupFilter, FixResponseBodyWriterStartupFilter>();
         });
+    }
+
+    private sealed class FixResponseBodyWriterStartupFilter : Microsoft.AspNetCore.Hosting.IStartupFilter
+    {
+        public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next)
+        {
+            return app =>
+            {
+                app.Use(nextMiddleware =>
+                {
+                    return async context =>
+                    {
+                        var bodyFeature = new Microsoft.AspNetCore.Http.StreamResponseBodyFeature(context.Response.Body);
+                        context.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>(bodyFeature);
+                        await nextMiddleware(context);
+                    };
+                });
+                next(app);
+            };
+        }
     }
 
     protected override void Dispose(bool disposing)

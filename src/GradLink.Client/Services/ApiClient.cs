@@ -111,11 +111,30 @@ public class ApiClient
         return new AuthResponseDto { Success = false, Message = defaultMessage };
     }
 
+    public Uri? BaseAddress => _http.BaseAddress;
+
+    public string GetHubUrl(string relativePath = "hubs/notifications") =>
+        new Uri(_http.BaseAddress ?? new Uri("http://localhost:5150"), relativePath.TrimStart('/')).ToString();
+
+    public string GetCvDownloadUrl(string userId) =>
+        new Uri(_http.BaseAddress ?? new Uri("http://localhost:5150"), $"api/files/cv/{userId}").ToString();
+
     // Jobs
-    public async Task<List<JobListingDto>?> GetJobsAsync()
+    public async Task<List<JobListingDto>?> GetJobsAsync(
+        string? search = null,
+        string? industry = null,
+        string? location = null,
+        GradLink.Shared.Enums.ExperienceLevel? experienceLevel = null)
     {
         await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<JobListingDto>>("api/jobs");
+        var queryParams = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
+        if (!string.IsNullOrWhiteSpace(industry)) queryParams.Add($"industry={Uri.EscapeDataString(industry)}");
+        if (!string.IsNullOrWhiteSpace(location)) queryParams.Add($"location={Uri.EscapeDataString(location)}");
+        if (experienceLevel.HasValue) queryParams.Add($"experienceLevel={(int)experienceLevel.Value}");
+
+        var url = "api/jobs" + (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
+        return await _http.GetFromJsonAsync<List<JobListingDto>>(url);
     }
 
     public async Task<JobListingDto?> GetJobByIdAsync(int id)
@@ -131,6 +150,22 @@ public class ApiClient
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadFromJsonAsync<JobListingDto>();
         return null;
+    }
+
+    public async Task<JobListingDto?> UpdateJobAsync(int id, CreateJobDto dto)
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.PutAsJsonAsync($"api/jobs/{id}", dto);
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<JobListingDto>();
+        return null;
+    }
+
+    public async Task<bool> DeleteJobAsync(int id)
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.DeleteAsync($"api/jobs/{id}");
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<List<JobListingDto>?> GetEmployerJobsAsync()
@@ -196,6 +231,49 @@ public class ApiClient
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadFromJsonAsync<GraduateProfileDto>();
         return null;
+    }
+
+    public async Task<EmployerProfileDto?> UpdateEmployerProfileAsync(UpdateEmployerProfileDto dto)
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.PutAsJsonAsync("api/profile/employer", dto);
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<EmployerProfileDto>();
+        return null;
+    }
+
+    // Notifications
+    public async Task<List<NotificationDto>?> GetNotificationsAsync(int skip = 0, int take = 20)
+    {
+        await PrepareBearerTokenAsync();
+        return await _http.GetFromJsonAsync<List<NotificationDto>>($"api/notifications?skip={skip}&take={take}");
+    }
+
+    public async Task<bool> MarkNotificationAsReadAsync(int id)
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.PutAsync($"api/notifications/{id}/read", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> MarkAllNotificationsAsReadAsync()
+    {
+        await PrepareBearerTokenAsync();
+        var response = await _http.PutAsync("api/notifications/read-all", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<int> GetUnreadNotificationCountAsync()
+    {
+        await PrepareBearerTokenAsync();
+        try
+        {
+            return await _http.GetFromJsonAsync<int>("api/notifications/unread-count");
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     public async Task<bool> UploadCvAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile file)

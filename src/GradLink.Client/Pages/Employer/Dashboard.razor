@@ -1,5 +1,7 @@
 @page "/employer/dashboard"
 @layout GradLink.Client.Layout.EmployerLayout
+@inject GradLink.Client.Services.ApiClient Api
+@inject NavigationManager Navigation
 
 <PageTitle>Overview – GradLink Employer</PageTitle>
 
@@ -12,61 +14,139 @@
   <a class="e-btn" href="/employer/jobs"><span style="font-size:18px;line-height:1">+</span> Post a new job</a>
 </div>
 
-<section class="e-stats">
-  @foreach (var s in stats)
-  {
-    <div class="e-card e-stat">
-      <div class="e-stat-top">@s.Label<span class="dot" style="background:@s.Color"></span></div>
-      <strong>@s.Value</strong><small>@s.Note</small>
-    </div>
-  }
-</section>
-
-<section class="e-grid">
-  <div class="e-card">
-    <div class="e-phead">
-      <div><h3>Active roles</h3><p>Performance at a glance.</p></div>
-      <a class="e-textlink" href="/employer/jobs">Manage all</a>
-    </div>
-    @foreach (var r in roles)
-    {
-      <a class="e-role" href="/employer/applicants">
-        <div class="jicon @r.Tone"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg></div>
-        <div><b>@r.Title</b><small>@r.Closes</small></div>
-        <div><span class="num">@r.Applicants</span><br /><small>Applicants</small></div>
-        <div><span class="num">@r.New</span><br /><small>New</small></div>
-        <span class="e-row-action" aria-label="View applicants"><Icon Name="chevron-right" Size="18" /></span>
-      </a>
-    }
+@if (_isLoading)
+{
+  <div style="padding: 40px; text-align: center; color: #64748b;">
+    Loading your overview...
   </div>
-
-  <div class="e-card e-activity">
-    <h3>Recent activity</h3>
-    @foreach (var a in activity)
+}
+else
+{
+  <section class="e-stats">
+    @foreach (var s in stats)
     {
-      <div class="e-act"><span class="dot" style="background:@a.Color"></span><div><b>@a.Text</b><small>@a.Time</small></div></div>
+      <div class="e-card e-stat">
+        <div class="e-stat-top">@s.Label<span class="dot" style="background:@s.Color"></span></div>
+        <strong>@s.Value</strong><small>@s.Note</small>
+      </div>
     }
-  </div>
-</section>
+  </section>
+
+  <section class="e-grid">
+    <div class="e-card">
+      <div class="e-phead">
+        <div><h3>Active roles</h3><p>Performance at a glance.</p></div>
+        <a class="e-textlink" href="/employer/jobs">Manage all</a>
+      </div>
+      @if (roles.Count == 0)
+      {
+        <div style="padding: 24px; text-align: center; color: #64748b;">
+          No active roles posted yet. <a href="/employer/jobs" style="color: #4F46E5; font-weight: 600;">Post your first job</a>.
+        </div>
+      }
+      else
+      {
+        @foreach (var r in roles)
+        {
+          <a class="e-role" href="/employer/applicants">
+            <div class="jicon @r.Tone"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M3 13h18"/></svg></div>
+            <div><b>@r.Title</b><small>@r.Closes</small></div>
+            <div><span class="num">@r.Applicants</span><br /><small>Applicants</small></div>
+            <div><span class="num">@r.New</span><br /><small>New</small></div>
+            <span class="e-row-action" aria-label="View applicants"><Icon Name="chevron-right" Size="18" /></span>
+          </a>
+        }
+      }
+    </div>
+
+    <div class="e-card e-activity">
+      <h3>Recent activity</h3>
+      @if (activity.Count == 0)
+      {
+        <div style="padding: 20px; text-align: center; color: #64748b;">
+          No notifications or recent activity yet.
+        </div>
+      }
+      else
+      {
+        @foreach (var a in activity)
+        {
+          <div class="e-act"><span class="dot" style="background:@a.Color"></span><div><b>@a.Text</b><small>@a.Time</small></div></div>
+        }
+      }
+    </div>
+  </section>
+}
 
 @code {
   record Stat(string Label, int Value, string Note, string Color);
   record Role(string Title, string Closes, int Applicants, int New, string Tone);
   record Activity(string Text, string Time, string Color);
 
-  // TODO: replace with data from GradLink.API (inject a service from /Services)
-  Stat[] stats = {
-    new("Active jobs", 4, "1 closes this week", "#4F46E5"),
-    new("Total applicants", 86, "+18 this week", "#f0913a"),
-    new("To review", 12, "Across 3 roles", "#3aa675"),
-    new("Interviews", 5, "Next on Thursday", "#2f6fdb") };
-  Role[] roles = {
-    new("Product Designer", "Closes in 12d", 32, 8, "c-purple"),
-    new("Frontend Engineer", "Closes in 8d", 28, 3, "c-blue"),
-    new("Marketing Associate", "Closes in 21d", 17, 1, "c-red") };
-  Activity[] activity = {
-    new("Maya submitted an application", "1h ago", "#4F46E5"),
-    new("Theo moved to interview", "2h ago", "#3aa675"),
-    new("Lena updated her portfolio", "3h ago", "#f0913a"),
-    new("Sam accepted your invite", "4h ago", "#2f6fdb") };
+  private bool _isLoading = true;
+  private List<Stat> stats = new();
+  private List<Role> roles = new();
+  private List<Activity> activity = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      var statsTask = Api.GetDashboardStatsAsync();
+      var jobsTask = Api.GetEmployerJobsAsync();
+      var notifsTask = Api.GetNotificationsAsync(take: 5);
+
+      await Task.WhenAll(statsTask, jobsTask, notifsTask);
+
+      var statsDto = await statsTask;
+      var jobs = await jobsTask ?? new List<JobListingDto>();
+      var notifs = await notifsTask ?? new List<NotificationDto>();
+
+      var totalApps = statsDto?.TotalApplicants ?? jobs.Sum(j => j.ApplicationCount);
+      var activeJobs = statsDto?.ActiveJobs ?? jobs.Count(j => j.IsActive);
+      var newToday = statsDto?.NewApplicantsToday ?? 0;
+      var totalPosted = statsDto?.TotalJobsPosted ?? jobs.Count;
+
+      stats = new List<Stat>
+      {
+        new("Active jobs", activeJobs, $"{totalPosted} total posted", "#4F46E5"),
+        new("Total applicants", totalApps, totalApps == 1 ? "1 applicant" : $"{totalApps} applicants", "#f0913a"),
+        new("New today", newToday, newToday == 1 ? "1 today" : $"{newToday} today", "#3aa675"),
+        new("Total roles", totalPosted, $"{activeJobs} active", "#2f6fdb")
+      };
+
+      var tones = new[] { "c-purple", "c-blue", "c-red", "c-green" };
+      roles = jobs.Where(j => j.IsActive).Select((j, idx) =>
+      {
+        var closesText = j.Deadline.HasValue
+          ? (j.Deadline.Value > DateTime.UtcNow ? $"Closes in {(int)Math.Max(1, (j.Deadline.Value - DateTime.UtcNow).TotalDays)}d" : "Closed")
+          : "Open role";
+        return new Role(j.Title, closesText, j.ApplicationCount, 0, tones[idx % tones.Length]);
+      }).ToList();
+
+      var colors = new[] { "#4F46E5", "#3aa675", "#f0913a", "#2f6fdb" };
+      activity = notifs.Select((n, idx) =>
+      {
+        var timeAgo = FormatTimeAgo(n.CreatedAt);
+        return new Activity(n.Message, timeAgo, colors[idx % colors.Length]);
+      }).ToList();
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error loading employer overview: {ex.Message}");
+    }
+    finally
+    {
+      _isLoading = false;
+    }
+  }
+
+  private static string FormatTimeAgo(DateTime dt)
+  {
+    var diff = DateTime.UtcNow - dt;
+    if (diff.TotalMinutes < 60) return $"{(int)Math.Max(1, diff.TotalMinutes)}m ago";
+    if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+    if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+    return dt.ToString("dd MMM");
+  }
 }

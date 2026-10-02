@@ -43,7 +43,7 @@
                             <Icon Name="home" Size="18" />
                             <span>Dashboard</span>
                         </a>
-                        <a href="/employer/jobs/new" class="nav-item @(IsActive("/employer/jobs/new") ? "active" : "")" @onclick="CloseMobileMenu">
+                        <a href="/employer/jobs" class="nav-item @(IsActive("/employer/jobs") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="plus" Size="18" />
                             <span>Post a job</span>
                         </a>
@@ -792,6 +792,7 @@
     private bool _isMobileMenuOpen = false;
 
     private GraduateProfileDto? _profile;
+    private EmployerProfileDto? _employerProfile;
     private DashboardStatsDto? _stats;
 
     protected override async Task OnInitializedAsync()
@@ -806,27 +807,31 @@
                 _profile = await Api.GetGraduateProfileAsync();
                 _stats = await Api.GetDashboardStatsAsync();
             }
+            else
+            {
+                _employerProfile = await Api.GetEmployerProfileAsync();
+            }
         }
         catch {}
 
-        // Seed initial notifications for visual demo
-        _notifications.Add(new NotificationDto 
-        { 
-            Message = "Your application for Junior Product Designer has been shortlisted.", 
-            CreatedAt = DateTime.Now.AddHours(-1), 
-            IsRead = false 
-        });
-        _notifications.Add(new NotificationDto 
-        { 
-            Message = "Aperture viewed your graduate profile.", 
-            CreatedAt = DateTime.Now.AddDays(-1), 
-            IsRead = true 
-        });
+        // Load real notifications from backend
+        try
+        {
+            var notifs = await Api.GetNotificationsAsync();
+            if (notifs != null)
+            {
+                _notifications = notifs;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching notifications: {ex.Message}");
+        }
 
         try
         {
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5150/hubs/notifications", options => 
+                .WithUrl(Api.GetHubUrl("/hubs/notifications"), options => 
                 {
                     options.AccessTokenProvider = async () => await LocalStorage.GetItemAsync("authToken");
                 })
@@ -857,16 +862,20 @@
 
     private string GetDisplayName()
     {
+        if (IsEmployer && !string.IsNullOrWhiteSpace(_employerProfile?.CompanyName))
+            return _employerProfile.CompanyName;
         if (!string.IsNullOrWhiteSpace(_profile?.FullName))
             return _profile.FullName;
-        return "Alex Morgan";
+        return IsEmployer ? "Employer" : "Alex Morgan";
     }
 
     private string GetUserSubtitle()
     {
+        if (IsEmployer && !string.IsNullOrWhiteSpace(_employerProfile?.Industry))
+            return _employerProfile.Industry;
         if (!string.IsNullOrWhiteSpace(_profile?.Degree))
             return _profile.Degree;
-        return "Design graduate";
+        return IsEmployer ? "Hiring Manager" : "Design graduate";
     }
 
     private string GetUserInitials()
@@ -877,7 +886,7 @@
             return $"{parts[0][0]}{parts[1][0]}".ToUpper();
         if (parts.Length == 1 && parts[0].Length > 0)
             return parts[0][0].ToString().ToUpper();
-        return "AM";
+        return IsEmployer ? "EM" : "AM";
     }
 
     private void ToggleMobileMenu()
@@ -892,15 +901,23 @@
         _isMobileMenuOpen = false;
     }
 
-    private void ToggleNotifications()
+    private async Task ToggleNotifications()
     {
         _showNotifications = !_showNotifications;
         _showUserMenu = false;
-        if (_showNotifications)
+        if (_showNotifications && _notifications.Any(n => !n.IsRead))
         {
-            foreach (var n in _notifications)
+            try
             {
-                n.IsRead = true;
+                await Api.MarkAllNotificationsAsReadAsync();
+                foreach (var n in _notifications)
+                {
+                    n.IsRead = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error marking notifications as read: {ex.Message}");
             }
         }
     }

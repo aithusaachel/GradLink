@@ -1,14 +1,28 @@
 @page "/employer/profile"
 @layout GradLink.Client.Layout.EmployerLayout
+@inject GradLink.Client.Services.ApiClient Api
+@using GradLink.Shared.DTOs
 
 <PageTitle>Company profile – GradLink Employer</PageTitle>
 
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+  <div style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; background: @(isError ? "#FEE2E2" : "#DCFCE7"); color: @(isError ? "#991B1B" : "#166534"); font-size: 14px;">
+    @statusMessage
+  </div>
+}
+
 <div class="e-banner">
   <div class="e-who">
-    <div class="e-logolg">NL</div>
-    <div><h2>@name</h2><p>Product software · London, UK</p></div>
+    <div class="e-logolg">@GetInitials()</div>
+    <div>
+      <h2>@name</h2>
+      <p>@(string.IsNullOrWhiteSpace(industry) ? "Industry not set" : industry) · @(string.IsNullOrWhiteSpace(email) ? "" : email)</p>
+    </div>
   </div>
-  <button class="e-ghost" @onclick="Save">@(saved ? "Saved ✓" : "Save changes")</button>
+  <button class="e-ghost" @onclick="Save" disabled="@isSaving">
+    @(isSaving ? "Saving..." : (saved ? "Saved ✓" : "Save changes"))
+  </button>
 </div>
 
 <div class="e-pgrid">
@@ -17,46 +31,126 @@
       <h3>Company information</h3>
       <span class="sub">Keep your profile accurate so candidates know who you are.</span>
       <div class="e-fields">
-        <label>Company name<input @bind="name" /></label>
-        <label>Industry<input @bind="industry" /></label>
-        <label>Location<input @bind="location" /></label>
+        <label>Company name<input @bind="name" placeholder="Company name" /></label>
+        <label>Industry<input @bind="industry" placeholder="e.g. Technology, Finance" /></label>
+        <label>Website<input @bind="website" placeholder="https://example.com" /></label>
         <label>Company size
           <select @bind="size">
-            <option>1–10 employees</option><option>11–50 employees</option>
-            <option>51–200 employees</option><option>200+ employees</option>
+            <option>1–10 employees</option>
+            <option>11–50 employees</option>
+            <option>51–200 employees</option>
+            <option>200+ employees</option>
           </select>
         </label>
       </div>
     </div>
     <div class="e-card e-form">
       <h3 style="margin-bottom:20px">About your company</h3>
-      <label><textarea @bind="about"></textarea></label>
+      <label><textarea @bind="about" placeholder="Tell candidates about your culture, mission, and benefits..."></textarea></label>
     </div>
   </div>
 
   <div class="e-card e-form">
-    <h3 style="margin-bottom:20px">Company profile</h3>
+    <h3 style="margin-bottom:20px">Company summary</h3>
     <div class="e-assets">
       <div class="jicon"><svg class="ico" viewBox="0 0 24 24"><path d="M5 21V4a1 1 0 011-1h9a1 1 0 011 1v17M16 9h3a1 1 0 011 1v11M3 21h18M9 8h3M9 12h3M9 16h3"/></svg></div>
-      <b>Brand assets</b><small>Logo and cover uploaded</small>
-      <button class="e-ghost" @onclick="ToggleAssetManager" aria-expanded="@assetManagerOpen">
-        @(assetManagerOpen ? "Close asset manager" : "Manage assets")
-      </button>
-      @if (assetManagerOpen)
+      <b>@jobCount active roles</b><small>Managed in your workspace</small>
+      <a href="/employer/jobs" class="e-ghost" style="text-decoration: none; padding: 6px 12px; font-size: 13px;">Manage posted jobs</a>
+    </div>
+
+    <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 13px; color: #64748b;">
+      <div>Registered Email: <b>@email</b></div>
+      @if (createdAt != default)
       {
-        <div class="e-assets-status" role="status">Asset manager opened. Logo and cover controls are ready.</div>
+        <div style="margin-top: 4px;">Member since: <b>@createdAt.ToString("MMM yyyy")</b></div>
       }
     </div>
   </div>
 </div>
 
 @code {
-  string name = "Northstar Labs", industry = "Software & technology", location = "London, United Kingdom",
-         size = "51–200 employees", about = "We build calm, thoughtful software for creative teams.";
-  bool saved;
-    bool assetManagerOpen;
+  string name = "";
+  string industry = "";
+  string email = "";
+  string website = "";
+  string size = "51–200 employees";
+  string about = "";
+  int jobCount = 0;
+  DateTime createdAt;
 
-  // TODO: send to GradLink.API
-  void Save() => saved = true;
-  void ToggleAssetManager() => assetManagerOpen = !assetManagerOpen;
+  bool saved;
+  bool isSaving;
+  string statusMessage = "";
+  bool isError = false;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      var profile = await Api.GetEmployerProfileAsync();
+      if (profile != null)
+      {
+        name = profile.CompanyName;
+        industry = profile.Industry ?? "";
+        email = profile.Email;
+        about = profile.Description ?? "";
+        website = profile.Website ?? "";
+        jobCount = profile.JobCount;
+        createdAt = profile.CreatedAt;
+      }
+    }
+    catch (Exception ex)
+    {
+      statusMessage = "Failed to load company profile: " + ex.Message;
+      isError = true;
+    }
+  }
+
+  async Task Save()
+  {
+    isSaving = true;
+    statusMessage = "";
+    try
+    {
+      var dto = new UpdateEmployerProfileDto
+      {
+        CompanyName = name,
+        Industry = industry,
+        Description = about,
+        Website = website
+      };
+
+      var updated = await Api.UpdateEmployerProfileAsync(dto);
+      if (updated != null)
+      {
+        saved = true;
+        isError = false;
+        statusMessage = "Company profile updated successfully!";
+      }
+      else
+      {
+        saved = false;
+        isError = true;
+        statusMessage = "Failed to update profile.";
+      }
+    }
+    catch (Exception ex)
+    {
+      saved = false;
+      isError = true;
+      statusMessage = "Error updating profile: " + ex.Message;
+    }
+    finally
+    {
+      isSaving = false;
+    }
+  }
+
+  string GetInitials()
+  {
+    if (string.IsNullOrWhiteSpace(name)) return "CO";
+    var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+    return parts[0].Length >= 2 ? parts[0].Substring(0, 2).ToUpper() : parts[0].ToUpper();
+  }
 }
