@@ -71,14 +71,14 @@ else
                         </div>
 
                         <div class="form-field">
-                            <label class="form-label">Headline</label>
-                            <input type="text" class="form-input" @bind="_headline" placeholder="e.g. Product design graduate" />
-                        </div>
+    <label class="form-label">Degree</label>
+    <input type="text" class="form-input" @bind="_headline" placeholder="e.g. BSc Computer Science" />
+</div>
 
-                        <div class="form-field">
-                            <label class="form-label">Location</label>
-                            <input type="text" class="form-input" @bind="_location" placeholder="e.g. London, United Kingdom" />
-                        </div>
+<div class="form-field">
+    <label class="form-label">University</label>
+    <input type="text" class="form-input" @bind="_location" placeholder="e.g. University of Ghana" />
+</div>
 
                         <div class="form-field">
                             <label class="form-label">Email</label>
@@ -555,16 +555,15 @@ else
             };
 
             var result = await Api.UpdateGraduateProfileAsync(updateDto);
-            if (result != null)
+                        if (result != null)
             {
                 _isError = false;
                 _feedbackMessage = "Profile updated successfully!";
             }
             else
             {
-                // Local optimistic feedback if mock
-                _isError = false;
-                _feedbackMessage = "Profile updated successfully!";
+                _isError = true;
+                _feedbackMessage = "Failed to update profile. Please try again.";
             }
         }
         catch (Exception ex)
@@ -579,16 +578,18 @@ else
     }
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
+{
+    var file = e.File;
+    if (file == null) return;
+
+    _isUploading = true;
+    _feedbackMessage = null;
+
+    try
     {
-        var file = e.File;
-        if (file == null) return;
-
-        _isUploading = true;
-        _feedbackMessage = null;
-
-        try
+        var success = await Api.UploadCvAsync(file);
+        if (success)
         {
-            var success = await Api.UploadCvAsync(file);
             _hasCv = true;
             _cvFileName = file.Name;
             var sizeMb = (file.Size / (1024.0 * 1024.0)).ToString("0.1");
@@ -596,14 +597,20 @@ else
             _isError = false;
             _feedbackMessage = "CV uploaded and updated successfully!";
         }
-        catch (Exception ex)
+        else
         {
             _isError = true;
-            _feedbackMessage = "Failed to upload CV: " + ex.Message;
-        }
-        finally
-        {
-            _isUploading = false;
+            _feedbackMessage = "Upload failed. Only PDF and Word documents under 5MB are allowed.";
         }
     }
+        catch (Exception ex)
+    {
+        _isError = true;
+        _feedbackMessage = "Failed to upload CV: " + ex.Message;
+    }
+    finally
+    {
+        _isUploading = false;
+    }
+}
 }
