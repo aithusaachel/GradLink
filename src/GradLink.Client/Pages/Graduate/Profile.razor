@@ -1,4 +1,4 @@
-@page "/graduate/profile"
+﻿@page "/graduate/profile"
 @layout GradLink.Client.Layout.AppLayout
 @inject ApiClient Api
 @inject NavigationManager Navigation
@@ -33,7 +33,7 @@ else
                 <div class="hero-text-block">
                     <h1 class="hero-name">@(_fullName)</h1>
                     <p class="hero-subtitle">
-                        @(!string.IsNullOrWhiteSpace(_headline) ? _headline : "Product design graduate") · @(!string.IsNullOrWhiteSpace(_location) ? _location : "London, UK")
+                        @(!string.IsNullOrWhiteSpace(_degree) ? _degree : "Product design graduate") Â· @(!string.IsNullOrWhiteSpace(_university) ? _university : "London, UK")
                     </p>
                 </div>
             </div>
@@ -72,17 +72,17 @@ else
 
                         <div class="form-field">
     <label class="form-label">Degree</label>
-    <input type="text" class="form-input" @bind="_headline" placeholder="e.g. BSc Computer Science" />
+    <input type="text" class="form-input" @bind="_degree" placeholder="e.g. BSc Computer Science" />
 </div>
 
 <div class="form-field">
     <label class="form-label">University</label>
-    <input type="text" class="form-input" @bind="_location" placeholder="e.g. University of Ghana" />
+    <input type="text" class="form-input" @bind="_university" placeholder="e.g. University of Ghana" />
 </div>
 
                         <div class="form-field">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-input" @bind="_email" placeholder="alex.morgan@example.com" />
+                            <input type="email" class="form-input" @bind="_email" readonly placeholder="alex.morgan@example.com" />
                         </div>
                     </div>
                 </div>
@@ -489,15 +489,15 @@ else
 
     // Form fields
     private string _fullName = "Alex Morgan";
-    private string _headline = "Product design graduate";
-    private string _location = "London, United Kingdom";
+    private string _degree = "Product design graduate";
+    private string _university = "London, United Kingdom";
     private string _email = "alex.morgan@example.com";
     private string _bio = "A curious product designer interested in making complex tools feel clear and human.";
 
     // CV details
     private bool _hasCv = true;
     private string _cvFileName = "Alex_Morgan_CV.pdf";
-    private string _cvMeta = "Updated 4 days ago · 1.8 MB";
+    private string _cvMeta = "Updated 4 days ago Â· 1.8 MB";
 
     protected override async Task OnInitializedAsync()
     {
@@ -507,8 +507,8 @@ else
             if (_profile != null)
             {
                 if (!string.IsNullOrWhiteSpace(_profile.FullName)) _fullName = _profile.FullName;
-                if (!string.IsNullOrWhiteSpace(_profile.Degree)) _headline = _profile.Degree;
-                if (!string.IsNullOrWhiteSpace(_profile.University)) _location = _profile.University;
+                if (!string.IsNullOrWhiteSpace(_profile.Degree)) _degree = _profile.Degree;
+                if (!string.IsNullOrWhiteSpace(_profile.University)) _university = _profile.University;
                 if (!string.IsNullOrWhiteSpace(_profile.Email)) _email = _profile.Email;
                 if (!string.IsNullOrWhiteSpace(_profile.Bio)) _bio = _profile.Bio;
 
@@ -516,7 +516,7 @@ else
                 if (_hasCv)
                 {
                     _cvFileName = $"{_fullName.Replace(" ", "_")}_CV.pdf";
-                    _cvMeta = "Active CV · Verified";
+                    _cvMeta = "Active CV Â· Verified";
                 }
             }
         }
@@ -549,8 +549,8 @@ else
             var updateDto = new UpdateGraduateProfileDto
             {
                 FullName = _fullName,
-                Degree = _headline,
-                University = _location,
+                Degree = _degree,
+                University = _university,
                 Bio = _bio
             };
 
@@ -593,7 +593,7 @@ else
             _hasCv = true;
             _cvFileName = file.Name;
             var sizeMb = (file.Size / (1024.0 * 1024.0)).ToString("0.1");
-            _cvMeta = $"Updated today · {sizeMb} MB";
+            _cvMeta = $"Updated today Â· {sizeMb} MB";
             _isError = false;
             _feedbackMessage = "CV uploaded and updated successfully!";
         }

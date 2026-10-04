@@ -30,14 +30,14 @@
         </NavLink>
       </nav>
 
-      <div class="e-tip">
-        <div class="e-tipicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></div>
-        <small>Hiring tip</small>
-        <h4>Stand out to graduates</h4>
-        <p>Jobs with salary ranges get 34% more applications.</p>
-      </div>
-
       <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+        <div class="e-tip" style="margin-bottom: 12px;">
+          <div class="e-tipicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></div>
+          <small>Hiring tip</small>
+          <h4>Stand out to graduates</h4>
+          <p>Jobs with salary ranges get 34% more applications.</p>
+        </div>
+
         <a class="e-account" href="/employer/profile" @onclick="CloseMenu" aria-label="Open company profile">
           <div class="e-avatar">@GetCompanyInitials()</div>
           <div><b>@(string.IsNullOrWhiteSpace(companyName) ? "Company Profile" : companyName)</b><span>Company account</span></div>
@@ -54,10 +54,7 @@
         <button class="e-menu" @onclick="ToggleMenu" @onclick:stopPropagation="true" aria-label="Open employer navigation menu" aria-expanded="@menuOpen">
           <span></span><span></span><span></span>
         </button>
-        <div class="e-toggle">
-          <button type="button" @onclick='() => Navigation.NavigateTo("/graduate/dashboard")'>Graduate</button>
-          <button type="button" class="on">Employer</button>
-        </div>
+
         <button class="e-bell" @onclick="ToggleNotifications" @onclick:stopPropagation="true" aria-label="Notifications" aria-expanded="@notificationsOpen" style="position: relative;">
           <svg class="ico" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0112 0c0 6 2 7 2 7H4s2-1 2-7M10 20a2 2 0 004 0"/></svg>
           @if (unreadCount > 0)

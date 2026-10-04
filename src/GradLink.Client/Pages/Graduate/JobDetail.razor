@@ -155,15 +155,36 @@ else if (_job != null)
                     }
                     else
                     {
-                        <!-- CV Status Indicator -->
-                        <div class="cv-status-box">
-                            <div class="cv-status-icon">
-                                <Icon Name="briefcase" Size="16" />
-                            </div>
-                            <div class="cv-status-text">
-                                <div class="cv-status-name">@_cvFileName</div>
-                                <div class="cv-status-verified">✓ Attached from your profile</div>
-                            </div>
+                        <!-- CV Upload -->
+                        <div class="cv-status-box" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            @if (_hasProfileCv && _cvFile == null)
+                            {
+                                <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                                    <div class="cv-status-icon">
+                                        <Icon Name="briefcase" Size="16" />
+                                    </div>
+                                    <div class="cv-status-text">
+                                        <div class="cv-status-name">@_cvFileName</div>
+                                        <div class="cv-status-verified">✓ Attached from your profile</div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 11px; color: #6B7280; margin-top: 4px; font-weight: 500;">
+                                    Upload a different CV (optional):
+                                </div>
+                            }
+                            else if (!_hasProfileCv)
+                            {
+                                <div style="font-size: 12px; font-weight: 600; color: #374151;">
+                                    Upload your CV to apply <span style="color: #DC2626;">*</span>
+                                </div>
+                            }
+                            
+                            <InputFile class="cv-upload-input" style="font-size: 13px; width: 100%; border: 1px dashed #D1D5DB; padding: 10px; border-radius: 8px; background: #FFF;" OnChange="HandleFileSelected" accept=".pdf,.doc,.docx" />
+                            
+                            @if (_fileUploadError != null)
+                            {
+                                <div style="color: #DC2626; font-size: 12px; margin-top: 4px;">@_fileUploadError</div>
+                            }
                         </div>
 
                         <!-- Cover Letter Field -->
@@ -753,6 +774,10 @@ else if (_job != null)
     private string _applicationStatus = "Submitted";
     private string _cvFileName = "Alex_Morgan_CV.pdf";
 
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _cvFile;
+    private string? _fileUploadError;
+    private bool _hasProfileCv = false;
+
     // Visual styles
     private string _companyInitial = "N";
     private string _avatarBg = "#EDE9FE";
@@ -779,9 +804,13 @@ else if (_job != null)
 
             // 3. Check profile for CV
             var profile = await Api.GetGraduateProfileAsync();
-            if (profile != null && !string.IsNullOrWhiteSpace(profile.FullName))
+            if (profile != null)
             {
-                _cvFileName = $"{profile.FullName.Replace(" ", "_")}_CV.pdf";
+                _hasProfileCv = profile.HasCv;
+                if (!string.IsNullOrWhiteSpace(profile.FullName))
+                {
+                    _cvFileName = $"{profile.FullName.Replace(" ", "_")}_CV.pdf";
+                }
             }
         }
         catch (Exception ex)
@@ -889,13 +918,51 @@ else if (_job != null)
         _isBookmarked = !_isBookmarked;
     }
 
+    private void HandleFileSelected(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
+    {
+        _fileUploadError = null;
+        var file = e.File;
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            _fileUploadError = "File size must be less than 5MB.";
+            _cvFile = null;
+            return;
+        }
+        var ext = System.IO.Path.GetExtension(file.Name).ToLower();
+        if (ext != ".pdf" && ext != ".doc" && ext != ".docx")
+        {
+            _fileUploadError = "Only PDF and Word documents are allowed.";
+            _cvFile = null;
+            return;
+        }
+        _cvFile = file;
+    }
+
     private async Task SubmitApplication()
     {
         _errorMessage = null;
+
+        if (!_hasProfileCv && _cvFile == null)
+        {
+            _errorMessage = "You must upload a CV to apply for this role.";
+            return;
+        }
+
         _isApplying = true;
 
         try
         {
+            if (_cvFile != null)
+            {
+                var uploaded = await Api.UploadCvAsync(_cvFile);
+                if (!uploaded)
+                {
+                    _errorMessage = "Failed to upload your CV. Please try again.";
+                    _isApplying = false;
+                    return;
+                }
+            }
+
             var dto = new CreateApplicationDto
             {
                 JobListingId = Id,

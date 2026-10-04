@@ -11,10 +11,27 @@ using GradLink.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add SQLite database
-builder.Services.AddDbContext<GradLinkDbContext>((services, options) =>
-    options.UseSqlite(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing in configuration.")));
+var dbUrl = builder.Configuration["DATABASE_URL"] ?? builder.Configuration["NeonDb"];
+if (!string.IsNullOrEmpty(dbUrl))
+{
+    // If it's a URI like postgresql://...
+    if (dbUrl.StartsWith("postgres://") || dbUrl.StartsWith("postgresql://"))
+    {
+        var uri = new Uri(dbUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var pgUser = userInfo[0];
+        var pgPass = userInfo.Length > 1 ? userInfo[1] : "";
+        dbUrl = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={pgUser};Password={pgPass};Ssl Mode=Require;Trust Server Certificate=true;";
+    }
+    builder.Services.AddDbContext<GradLinkDbContext>(options => options.UseNpgsql(dbUrl));
+}
+else
+{
+    // Fallback to SQLite for local development if no Postgres string is provided
+    builder.Services.AddDbContext<GradLinkDbContext>((services, options) =>
+        options.UseSqlite(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.")));
+}
 
 // Add Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -59,7 +76,8 @@ builder.Services.AddAuthentication(options =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            if (!string.IsNullOrEmpty(accessToken) && 
+                (path.StartsWithSegments("/hubs/notifications") || path.StartsWithSegments("/api/files/cv")))
             {
                 context.Token = accessToken;
             }
@@ -145,11 +163,15 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 app.UseCors("AllowBlazorClient");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

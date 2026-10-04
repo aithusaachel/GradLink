@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using GradLink.Shared.DTOs;
+using Microsoft.AspNetCore.Components;
 
 namespace GradLink.Client.Services;
 
@@ -8,11 +9,13 @@ public class ApiClient
 {
     private readonly HttpClient _http;
     private readonly LocalStorageService _localStorage;
+    private readonly NavigationManager _navManager;
 
-    public ApiClient(HttpClient http, LocalStorageService localStorage)
+    public ApiClient(HttpClient http, LocalStorageService localStorage, NavigationManager navManager)
     {
         _http = http;
         _localStorage = localStorage;
+        _navManager = navManager;
     }
 
     private async Task PrepareBearerTokenAsync()
@@ -21,6 +24,65 @@ public class ApiClient
         if (!string.IsNullOrEmpty(token))
         {
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+    
+    private void CheckUnauthorized(HttpResponseMessage response)
+    {
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _navManager.NavigateTo("/login");
+        }
+    }
+
+    private async Task<T?> GetAsync<T>(string url)
+    {
+        await PrepareBearerTokenAsync();
+        try
+        {
+            var response = await _http.GetAsync(url);
+            CheckUnauthorized(response);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<T>();
+            return default;
+        }
+        catch
+        {
+            return default;
+        }
+    }
+
+    private async Task<TOut?> PostAsync<TIn, TOut>(string url, TIn payload)
+    {
+        await PrepareBearerTokenAsync();
+        try
+        {
+            var response = await _http.PostAsJsonAsync(url, payload);
+            CheckUnauthorized(response);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<TOut>();
+            return default;
+        }
+        catch
+        {
+            return default;
+        }
+    }
+
+    private async Task<TOut?> PutAsync<TIn, TOut>(string url, TIn payload)
+    {
+        await PrepareBearerTokenAsync();
+        try
+        {
+            var response = await _http.PutAsJsonAsync(url, payload);
+            CheckUnauthorized(response);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<TOut>();
+            return default;
+        }
+        catch
+        {
+            return default;
         }
     }
 
@@ -126,7 +188,6 @@ public class ApiClient
         string? location = null,
         GradLink.Shared.Enums.ExperienceLevel? experienceLevel = null)
     {
-        await PrepareBearerTokenAsync();
         var queryParams = new List<string>();
         if (!string.IsNullOrWhiteSpace(search)) queryParams.Add($"search={Uri.EscapeDataString(search)}");
         if (!string.IsNullOrWhiteSpace(industry)) queryParams.Add($"industry={Uri.EscapeDataString(industry)}");
@@ -134,133 +195,77 @@ public class ApiClient
         if (experienceLevel.HasValue) queryParams.Add($"experienceLevel={(int)experienceLevel.Value}");
 
         var url = "api/jobs" + (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-        return await _http.GetFromJsonAsync<List<JobListingDto>>(url);
+        return await GetAsync<List<JobListingDto>>(url);
     }
 
-    public async Task<JobListingDto?> GetJobByIdAsync(int id)
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<JobListingDto>($"api/jobs/{id}");
-    }
+    public Task<JobListingDto?> GetJobByIdAsync(int id) => GetAsync<JobListingDto>($"api/jobs/{id}");
+    public Task<JobListingDto?> PostJobAsync(CreateJobDto dto) => PostAsync<CreateJobDto, JobListingDto>("api/jobs", dto);
+    public Task<JobListingDto?> UpdateJobAsync(int id, CreateJobDto dto) => PutAsync<CreateJobDto, JobListingDto>($"api/jobs/{id}", dto);
 
-    public async Task<JobListingDto?> PostJobAsync(CreateJobDto dto)
+    public async Task<bool> ToggleJobStatusAsync(int id, bool isActive)
     {
         await PrepareBearerTokenAsync();
-        var response = await _http.PostAsJsonAsync("api/jobs", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<JobListingDto>();
-        return null;
-    }
-
-    public async Task<JobListingDto?> UpdateJobAsync(int id, CreateJobDto dto)
-    {
-        await PrepareBearerTokenAsync();
-        var response = await _http.PutAsJsonAsync($"api/jobs/{id}", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<JobListingDto>();
-        return null;
+        try
+        {
+            var response = await _http.PatchAsJsonAsync($"api/jobs/{id}/status", new UpdateJobStatusDto { IsActive = isActive });
+            CheckUnauthorized(response);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     public async Task<bool> DeleteJobAsync(int id)
     {
         await PrepareBearerTokenAsync();
-        var response = await _http.DeleteAsync($"api/jobs/{id}");
-        return response.IsSuccessStatusCode;
+        try
+        {
+            var response = await _http.DeleteAsync($"api/jobs/{id}");
+            CheckUnauthorized(response);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
-    public async Task<List<JobListingDto>?> GetEmployerJobsAsync()
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<JobListingDto>>("api/jobs/employer");
-    }
+    public Task<List<JobListingDto>?> GetEmployerJobsAsync() => GetAsync<List<JobListingDto>>("api/jobs/employer");
 
     // Applications
-    public async Task<List<ApplicationDto>?> GetGraduateApplicationsAsync()
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<ApplicationDto>>("api/applications/my");
-    }
-
-    public async Task<ApplicationDto?> ApplyAsync(CreateApplicationDto dto)
-    {
-        await PrepareBearerTokenAsync();
-        var response = await _http.PostAsJsonAsync("api/applications", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<ApplicationDto>();
-        return null;
-    }
-
-    public async Task<List<ApplicationDto>?> GetJobApplicantsAsync(int jobId)
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<ApplicationDto>>($"api/applications/job/{jobId}");
-    }
-
-    public async Task<ApplicationDto?> UpdateApplicationStatusAsync(UpdateApplicationStatusDto dto)
-    {
-        await PrepareBearerTokenAsync();
-        var response = await _http.PutAsJsonAsync("api/applications/status", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<ApplicationDto>();
-        return null;
-    }
+    public Task<List<ApplicationDto>?> GetGraduateApplicationsAsync() => GetAsync<List<ApplicationDto>>("api/applications/my");
+    public Task<ApplicationDto?> ApplyAsync(CreateApplicationDto dto) => PostAsync<CreateApplicationDto, ApplicationDto>("api/applications", dto);
+    public Task<List<ApplicationDto>?> GetJobApplicantsAsync(int jobId) => GetAsync<List<ApplicationDto>>($"api/applications/job/{jobId}");
+    public Task<ApplicationDto?> UpdateApplicationStatusAsync(UpdateApplicationStatusDto dto) => PutAsync<UpdateApplicationStatusDto, ApplicationDto>("api/applications/status", dto);
 
     // Profiles
-    public async Task<GraduateProfileDto?> GetGraduateProfileAsync()
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<GraduateProfileDto>("api/profile/graduate");
-    }
-
-    public async Task<EmployerProfileDto?> GetEmployerProfileAsync()
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<EmployerProfileDto>("api/profile/employer");
-    }
-
-    public async Task<DashboardStatsDto?> GetDashboardStatsAsync()
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<DashboardStatsDto>("api/profile/stats");
-    }
-
-    public async Task<GraduateProfileDto?> UpdateGraduateProfileAsync(UpdateGraduateProfileDto dto)
-    {
-        await PrepareBearerTokenAsync();
-        var response = await _http.PutAsJsonAsync("api/profile/graduate", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<GraduateProfileDto>();
-        return null;
-    }
-
-    public async Task<EmployerProfileDto?> UpdateEmployerProfileAsync(UpdateEmployerProfileDto dto)
-    {
-        await PrepareBearerTokenAsync();
-        var response = await _http.PutAsJsonAsync("api/profile/employer", dto);
-        if (response.IsSuccessStatusCode)
-            return await response.Content.ReadFromJsonAsync<EmployerProfileDto>();
-        return null;
-    }
+    public Task<GraduateProfileDto?> GetGraduateProfileAsync() => GetAsync<GraduateProfileDto>("api/profile/graduate");
+    public Task<EmployerProfileDto?> GetEmployerProfileAsync() => GetAsync<EmployerProfileDto>("api/profile/employer");
+    public Task<DashboardStatsDto?> GetDashboardStatsAsync() => GetAsync<DashboardStatsDto>("api/profile/stats");
+    public Task<GraduateProfileDto?> UpdateGraduateProfileAsync(UpdateGraduateProfileDto dto) => PutAsync<UpdateGraduateProfileDto, GraduateProfileDto>("api/profile/graduate", dto);
+    public Task<EmployerProfileDto?> UpdateEmployerProfileAsync(UpdateEmployerProfileDto dto) => PutAsync<UpdateEmployerProfileDto, EmployerProfileDto>("api/profile/employer", dto);
 
     // Notifications
-    public async Task<List<NotificationDto>?> GetNotificationsAsync(int skip = 0, int take = 20)
-    {
-        await PrepareBearerTokenAsync();
-        return await _http.GetFromJsonAsync<List<NotificationDto>>($"api/notifications?skip={skip}&take={take}");
-    }
+    public Task<List<NotificationDto>?> GetNotificationsAsync(int skip = 0, int take = 20) => GetAsync<List<NotificationDto>>($"api/notifications?skip={skip}&take={take}");
 
     public async Task<bool> MarkNotificationAsReadAsync(int id)
     {
         await PrepareBearerTokenAsync();
-        var response = await _http.PutAsync($"api/notifications/{id}/read", null);
-        return response.IsSuccessStatusCode;
+        try
+        {
+            var response = await _http.PutAsync($"api/notifications/{id}/read", null);
+            CheckUnauthorized(response);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     public async Task<bool> MarkAllNotificationsAsReadAsync()
     {
         await PrepareBearerTokenAsync();
-        var response = await _http.PutAsync("api/notifications/read-all", null);
-        return response.IsSuccessStatusCode;
+        try
+        {
+            var response = await _http.PutAsync("api/notifications/read-all", null);
+            CheckUnauthorized(response);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 
     public async Task<int> GetUnreadNotificationCountAsync()
@@ -268,25 +273,30 @@ public class ApiClient
         await PrepareBearerTokenAsync();
         try
         {
-            return await _http.GetFromJsonAsync<int>("api/notifications/unread-count");
-        }
-        catch
-        {
+            var response = await _http.GetAsync("api/notifications/unread-count");
+            CheckUnauthorized(response);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<int>();
             return 0;
         }
+        catch { return 0; }
     }
 
     public async Task<bool> UploadCvAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile file)
     {
         await PrepareBearerTokenAsync();
-        using var content = new MultipartFormDataContent();
-        using var stream = file.OpenReadStream(5 * 1024 * 1024);
-        using var streamContent = new StreamContent(stream);
-        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrEmpty(file.ContentType) ? "application/pdf" : file.ContentType);
-        content.Add(streamContent, "file", file.Name);
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            using var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrEmpty(file.ContentType) ? "application/pdf" : file.ContentType);
+            content.Add(streamContent, "file", file.Name);
 
-        var response = await _http.PostAsync("api/files/cv", content);
-        return response.IsSuccessStatusCode;
+            var response = await _http.PostAsync("api/files/cv", content);
+            CheckUnauthorized(response);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
     }
 }
-

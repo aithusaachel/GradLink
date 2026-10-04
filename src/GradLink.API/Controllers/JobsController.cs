@@ -66,6 +66,16 @@ public class JobsController : ControllerBase
     }
 
     [Authorize(Roles = "Employer")]
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> ToggleJobStatus(int id, [FromBody] UpdateJobStatusDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var result = await _jobService.ToggleJobStatusAsync(id, userId, dto.IsActive);
+        if (!result) return NotFound();
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Employer")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJob(int id)
     {

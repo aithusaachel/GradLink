@@ -40,3 +40,8 @@ public class CreateJobDto
 
     public DateTime? Deadline { get; set; }
 }
+
+public class UpdateJobStatusDto
+{
+    public bool IsActive { get; set; }
+}

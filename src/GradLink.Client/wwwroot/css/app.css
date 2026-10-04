@@ -49,16 +49,8 @@
 }
 
 /* ============================================
-   Typography (Self-hosted Inter)
+   Typography (Google Fonts Inter)
    ============================================ */
-@font-face {
-    font-family: 'Inter';
-    src: url('/fonts/InterVariable.woff2') format('woff2-variations'),
-         url('/fonts/InterVariable.woff2') format('woff2');
-    font-weight: 100 900;
-    font-display: block;
-}
-
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
     font-size: 17px; /* Default body */

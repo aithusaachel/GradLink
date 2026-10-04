@@ -32,6 +32,7 @@ public class EmployerProfileDto
     public string? Industry { get; set; }
     public string? Description { get; set; }
     public string? Website { get; set; }
+    public string? CompanySize { get; set; }
     public int JobCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -42,4 +43,5 @@ public class UpdateEmployerProfileDto
     public string? Industry { get; set; }
     public string? Description { get; set; }
     public string? Website { get; set; }
+    public string? CompanySize { get; set; }
 }

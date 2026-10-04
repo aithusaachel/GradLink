@@ -83,6 +83,9 @@
         <span><span class="pill @(j.Status == "Active" ? "live" : "draft")">@j.Status</span></span>
         <div style="display: flex; gap: 8px; align-items: center;">
           <a href="@($"/employer/applicants?jobId={j.Id}")" class="e-ghost" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">View</a>
+          <button class="e-ghost" style="padding: 4px 10px; font-size: 12px; color: #4B5563;" @onclick='() => ToggleJob(j.Id, j.Status != "Active")'>
+              @(j.Status == "Active" ? "Deactivate" : "Activate")
+          </button>
           <button class="e-ghost" style="padding: 4px 10px; font-size: 12px; color: #DC2626;" @onclick="() => DeleteJob(j.Id)">Delete</button>
         </div>
       </div>
@@ -226,6 +229,30 @@
       statusMessage = "Error deleting job: " + ex.Message;
       isError = true;
     }
+  }
+
+  private async Task ToggleJob(int id, bool activate)
+  {
+      try
+      {
+          var success = await Api.ToggleJobStatusAsync(id, activate);
+          if (success)
+          {
+              statusMessage = $"Job {(activate ? "activated" : "deactivated")} successfully.";
+              isError = false;
+              await LoadJobsAsync();
+          }
+          else
+          {
+              statusMessage = "Failed to update job status.";
+              isError = true;
+          }
+      }
+      catch (Exception ex)
+      {
+          statusMessage = "Error updating job status: " + ex.Message;
+          isError = true;
+      }
   }
 
   private static string FormatPostedDate(DateTime dt)

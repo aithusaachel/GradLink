@@ -95,6 +95,7 @@
         email = profile.Email;
         about = profile.Description ?? "";
         website = profile.Website ?? "";
+        size = profile.CompanySize ?? "51–200 employees";
         jobCount = profile.JobCount;
         createdAt = profile.CreatedAt;
       }
@@ -117,7 +118,8 @@
         CompanyName = name,
         Industry = industry,
         Description = about,
-        Website = website
+        Website = website,
+        CompanySize = size
       };
 
       var updated = await Api.UpdateEmployerProfileAsync(dto);

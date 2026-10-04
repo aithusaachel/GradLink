@@ -2,6 +2,8 @@
 @layout GradLink.Client.Layout.EmployerLayout
 @inject GradLink.Client.Services.ApiClient Api
 @inject NavigationManager Navigation
+@inject GradLink.Client.Services.LocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
 @using GradLink.Shared.DTOs
 @using GradLink.Shared.Enums
 
@@ -134,9 +136,9 @@ else
             <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Candidate CV attached
           </div>
-          <a href="@Api.GetCvDownloadUrl(selectedApp.GraduateId)" target="_blank" class="e-btn" style="padding: 4px 12px; font-size: 12px; text-decoration: none;">
+          <button @onclick="() => DownloadCv(selectedApp.GraduateId)" class="e-btn" style="padding: 4px 12px; font-size: 12px; border: none; cursor: pointer;">
             Download CV
-          </a>
+          </button>
         </div>
       }
 
@@ -182,6 +184,7 @@ else
   private List<ApplicationDtoWrapper> allApplicants = new();
   private int? selectedJobId;
   private ApplicationDtoWrapper? selectedApp;
+  private string? _authToken;
 
   private IEnumerable<ApplicationDtoWrapper> DisplayedApplicants =>
     selectedJobId.HasValue
@@ -191,6 +194,7 @@ else
   protected override async Task OnInitializedAsync()
   {
     selectedJobId = JobId;
+    _authToken = await LocalStorage.GetItemAsync("authToken");
     await LoadApplicantsAsync();
   }
 
@@ -280,6 +284,13 @@ else
     {
       isUpdatingStatus = false;
     }
+  }
+
+  private async Task DownloadCv(string graduateId)
+  {
+      var url = Api.GetCvDownloadUrl(graduateId);
+      var token = await LocalStorage.GetItemAsync("authToken");
+      await JSRuntime.InvokeVoidAsync("downloadFileWithAuth", url, token);
   }
 
   private static string GetInitials(string fullName)

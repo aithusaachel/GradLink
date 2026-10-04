@@ -22,6 +22,7 @@ public class ApplicationUser : IdentityUser
     public string? Industry { get; set; }
     public string? CompanyDescription { get; set; }
     public string? Website { get; set; }
+    public string? CompanySize { get; set; }
 
     // Navigation properties
     public ICollection<JobListing> JobListings { get; set; } = new List<JobListing>();

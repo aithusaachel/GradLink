@@ -36,6 +36,39 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <script>
+        window.downloadFileWithAuth = async (url, token) => {
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    alert('Download failed: ' + response.status + ' ' + text);
+                    return;
+                }
+                let fileName = 'Candidate_CV.pdf';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.indexOf('filename=') !== -1) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        fileName = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                const blob = await response.blob();
+                const downloadUrl = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = downloadUrl;
+                anchor.download = fileName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(downloadUrl);
+            } catch (err) {
+                alert('Download error: ' + err);
+            }
+        };
+    </script>
 </body>
 
 </html>

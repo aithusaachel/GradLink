@@ -23,7 +23,20 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
         try
         {
-            var claims = ParseClaimsFromJwt(token);
+            var claims = ParseClaimsFromJwt(token).ToList();
+            
+            // Check expiry
+            var expClaim = claims.FirstOrDefault(c => c.Type == "exp")?.Value;
+            if (expClaim != null && long.TryParse(expClaim, out var exp))
+            {
+                var expDate = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
+                if (expDate <= DateTime.UtcNow)
+                {
+                    await _localStorage.RemoveItemAsync("authToken");
+                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+                }
+            }
+
             var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role);
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }

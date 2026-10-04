@@ -33,27 +33,10 @@
             <!-- Workspace Section -->
             <div class="nav-section">
                 <div class="nav-section-title">
-                    @(IsEmployer ? "EMPLOYER WORKSPACE" : "GRADUATE WORKSPACE")
+                    GRADUATE WORKSPACE
                 </div>
 
                 <nav class="nav-list">
-                    @if (IsEmployer)
-                    {
-                        <a href="/employer/dashboard" class="nav-item @(IsActive("/employer/dashboard") ? "active" : "")" @onclick="CloseMobileMenu">
-                            <Icon Name="home" Size="18" />
-                            <span>Dashboard</span>
-                        </a>
-                        <a href="/employer/jobs" class="nav-item @(IsActive("/employer/jobs") ? "active" : "")" @onclick="CloseMobileMenu">
-                            <Icon Name="plus" Size="18" />
-                            <span>Post a job</span>
-                        </a>
-                        <a href="/employer/profile" class="nav-item @(IsActive("/employer/profile") ? "active" : "")" @onclick="CloseMobileMenu">
-                            <Icon Name="building" Size="18" />
-                            <span>Company profile</span>
-                        </a>
-                    }
-                    else
-                    {
                         <a href="/graduate/dashboard" class="nav-item @(IsActive("/graduate/dashboard") ? "active" : "")" @onclick="CloseMobileMenu">
                             <Icon Name="home" Size="18" />
                             <span>Overview</span>
@@ -67,15 +50,12 @@
                             <span>My applications</span>
                             <span class="nav-badge">@(_stats?.TotalApplications > 0 ? _stats.TotalApplications : 4)</span>
                         </a>
-                    }
                 </nav>
             </div>
         </div>
 
         <!-- Sidebar Bottom Area -->
         <div class="sidebar-bottom">
-            @if (!IsEmployer)
-            {
                 <!-- Profile Strength Card -->
                 <div class="strength-card">
                     <div class="strength-badge">
@@ -88,7 +68,6 @@
                         <div class="strength-progress-fill" style="width: 72%;"></div>
                     </div>
                 </div>
-            }
 
             <!-- User Profile Footer -->
             <div class="user-footer" @onclick="ToggleUserMenu" @onkeydown="HandleUserFooterKeyDown" role="button" tabindex="0" aria-label="User Options">
@@ -107,7 +86,7 @@
             @if (_showUserMenu)
             {
                 <div class="user-dropdown-menu">
-                    <a href="@(IsEmployer ? "/employer/profile" : "/graduate/profile")" class="user-dropdown-item" @onclick="CloseMobileMenu">
+                    <a href="/graduate/profile" class="user-dropdown-item" @onclick="CloseMobileMenu">
                         <Icon Name="user" Size="16" />
                         <span>View profile</span>
                     </a>
@@ -140,11 +119,7 @@
 
             <!-- Right Side: Actions -->
             <div class="top-bar-actions">
-                <!-- Role Switcher Segmented Control -->
-                <div class="role-switcher" role="tablist" aria-label="Role Switcher">
-                    <a href="/graduate/dashboard" class="role-btn @(!IsEmployer ? "active" : "")" role="tab" aria-selected="@(!IsEmployer ? "true" : "false")">Graduate</a>
-                    <a href="/employer/dashboard" class="role-btn @(IsEmployer ? "active" : "")" role="tab" aria-selected="@(IsEmployer ? "true" : "false")">Employer</a>
-                </div>
+
 
                 <!-- Notifications Dropdown Trigger -->
                 <div class="notification-container">
@@ -714,6 +689,7 @@
         padding: 0 44px 48px 44px;
         max-width: 1260px;
         width: 100%;
+        margin: 0 auto;
     }
 
     /* Responsive Breakpoints */
@@ -776,7 +752,7 @@
 </style>
 
 @code {
-    private bool IsEmployer => Navigation.Uri.Contains("/employer", StringComparison.OrdinalIgnoreCase);
+
 
     private bool IsActive(string href)
     {
@@ -792,7 +768,7 @@
     private bool _isMobileMenuOpen = false;
 
     private GraduateProfileDto? _profile;
-    private EmployerProfileDto? _employerProfile;
+
     private DashboardStatsDto? _stats;
 
     protected override async Task OnInitializedAsync()
@@ -802,15 +778,8 @@
         // Load initial profile & stats
         try
         {
-            if (!IsEmployer)
-            {
-                _profile = await Api.GetGraduateProfileAsync();
-                _stats = await Api.GetDashboardStatsAsync();
-            }
-            else
-            {
-                _employerProfile = await Api.GetEmployerProfileAsync();
-            }
+            _profile = await Api.GetGraduateProfileAsync();
+            _stats = await Api.GetDashboardStatsAsync();
         }
         catch {}
 
@@ -862,20 +831,16 @@
 
     private string GetDisplayName()
     {
-        if (IsEmployer && !string.IsNullOrWhiteSpace(_employerProfile?.CompanyName))
-            return _employerProfile.CompanyName;
         if (!string.IsNullOrWhiteSpace(_profile?.FullName))
             return _profile.FullName;
-        return IsEmployer ? "Employer" : "Alex Morgan";
+        return "Graduate";
     }
 
     private string GetUserSubtitle()
     {
-        if (IsEmployer && !string.IsNullOrWhiteSpace(_employerProfile?.Industry))
-            return _employerProfile.Industry;
         if (!string.IsNullOrWhiteSpace(_profile?.Degree))
             return _profile.Degree;
-        return IsEmployer ? "Hiring Manager" : "Design graduate";
+        return "Student";
     }
 
     private string GetUserInitials()
@@ -886,7 +851,7 @@
             return $"{parts[0][0]}{parts[1][0]}".ToUpper();
         if (parts.Length == 1 && parts[0].Length > 0)
             return parts[0][0].ToString().ToUpper();
-        return IsEmployer ? "EM" : "AM";
+        return "G";
     }
 
     private void ToggleMobileMenu()
