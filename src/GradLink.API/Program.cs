@@ -142,6 +142,9 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<KeepAliveService>();
+
 // CORS - allow the Blazor client
 builder.Services.AddCors(options =>
 {
@@ -163,11 +166,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Seed database
 using (var scope = app.Services.CreateScope())
