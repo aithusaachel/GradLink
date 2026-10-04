@@ -8,6 +8,7 @@ using GradLink.API.Data;
 using GradLink.API.Hubs;
 using GradLink.API.Infrastructure;
 using GradLink.API.Services;
+using GradLink.Shared.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,23 +37,30 @@ else
 // Add Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
+    options.User.RequireUniqueEmail = true;
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
 })
 .AddEntityFrameworkStores<GradLinkDbContext>()
 .AddDefaultTokenProviders();
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException("JWT Key must be at least 32 bytes long for HS256 signing.");
+
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -62,6 +70,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.FromMinutes(1),
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "GradLink",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "GradLinkUsers",
         IssuerSigningKey = key,
@@ -69,7 +78,6 @@ builder.Services.AddAuthentication(options =>
         RoleClaimType = ClaimTypes.Role
     };
 
-    // Allow SignalR to receive token from query string
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -84,6 +92,12 @@ builder.Services.AddAuthentication(options =>
             return Task.CompletedTask;
         }
     };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("GraduateOnly", policy => policy.RequireAuthenticatedUser().RequireRole(UserRole.Graduate.ToString()));
+    options.AddPolicy("EmployerOnly", policy => policy.RequireAuthenticatedUser().RequireRole(UserRole.Employer.ToString()));
 });
 
 // Add services

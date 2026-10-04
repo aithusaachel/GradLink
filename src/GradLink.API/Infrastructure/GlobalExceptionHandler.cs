@@ -26,16 +26,21 @@ public class GlobalExceptionHandler(
             logger.LogWarning(exception, "{Method} {Path} failed with {StatusCode}.", httpContext.Request.Method, httpContext.Request.Path, status);
 
         httpContext.Response.StatusCode = status;
+
+        var problemDetails = new ProblemDetails
+        {
+            Status = status,
+            Title = title,
+            Detail = null,
+            Type = $"https://httpstatuses.com/{status}"
+        };
+
+        problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
-            Exception = exception,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = environment.IsDevelopment() ? exception.Message : null
-            }
+            ProblemDetails = problemDetails
         });
     }
 }

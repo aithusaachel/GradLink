@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GradLink.API.Data;
+using GradLink.Shared.Enums;
 
 namespace GradLink.API.Controllers;
 
@@ -27,13 +28,16 @@ public class FilesController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest("No file uploaded.");
 
-        if (file.Length > 5 * 1024 * 1024) // 5MB limit
+        if (file.Length > 5 * 1024 * 1024)
             return BadRequest("File size must be less than 5MB.");
 
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
-        var extension = Path.GetExtension(file.FileName).ToLower();
         if (!allowedExtensions.Contains(extension))
             return BadRequest("Only PDF and Word documents are allowed.");
+
+        if (!IsLikelyValidCv(file.OpenReadStream(), extension))
+            return BadRequest("The uploaded file is not a valid CV document.");
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId))
@@ -45,24 +49,23 @@ public class FilesController : ControllerBase
         var fileName = $"{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
         var filePath = Path.Combine(uploadsDir, fileName);
 
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
             await file.CopyToAsync(stream);
         }
 
-        // Update user record
         var user = await _context.Users.FindAsync(userId);
         if (user != null)
         {
-            // Delete old CV if exists
-            if (!string.IsNullOrEmpty(user.CvFilePath) && System.IO.File.Exists(user.CvFilePath))
+            if (!string.IsNullOrEmpty(user.CvFilePath))
             {
                 var oldFullPath = Path.GetFullPath(user.CvFilePath);
-                if (oldFullPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase))
+                if (oldFullPath.StartsWith(uploadsDir, StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(oldFullPath))
                 {
-                    System.IO.File.Delete(user.CvFilePath);
+                    System.IO.File.Delete(oldFullPath);
                 }
             }
+
             user.CvFilePath = filePath;
             await _context.SaveChangesAsync();
         }
@@ -77,23 +80,19 @@ public class FilesController : ControllerBase
         if (string.IsNullOrEmpty(currentUserId))
             return Unauthorized();
 
-        var isEmployer = User.IsInRole("Employer") || User.FindFirstValue(ClaimTypes.Role) == "Employer";
+        var isEmployer = User.IsInRole(UserRole.Employer.ToString()) || string.Equals(User.FindFirstValue(ClaimTypes.Role), UserRole.Employer.ToString(), StringComparison.OrdinalIgnoreCase);
         var isOwner = string.Equals(currentUserId, userId, StringComparison.Ordinal);
 
         if (!isOwner)
         {
             if (!isEmployer)
-            {
                 return Forbid();
-            }
 
             var hasApplied = await _context.JobApplications
                 .AnyAsync(a => a.GraduateId == userId && a.JobListing.EmployerId == currentUserId);
-            
+
             if (!hasApplied)
-            {
                 return Forbid();
-            }
         }
 
         var user = await _context.Users.FindAsync(userId);
@@ -117,5 +116,41 @@ public class FilesController : ControllerBase
         };
 
         return File(fileBytes, contentType, $"{user.FullName}_CV{extension}");
+    }
+
+    private static bool IsLikelyValidCv(Stream stream, string extension)
+    {
+        try
+        {
+            stream.Position = 0;
+            var header = new byte[8];
+            var bytesRead = stream.Read(header, 0, header.Length);
+            if (bytesRead < 4)
+                return false;
+
+            if (extension == ".pdf")
+                return header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46;
+
+            if (extension == ".doc")
+                return header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0;
+
+            if (extension == ".docx")
+            {
+                stream.Position = 0;
+                var zipHeader = new byte[4];
+                stream.Read(zipHeader, 0, zipHeader.Length);
+                return zipHeader[0] == 0x50 && zipHeader[1] == 0x4B && zipHeader[2] == 0x03 && zipHeader[3] == 0x04;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            stream.Position = 0;
+        }
     }
 }
