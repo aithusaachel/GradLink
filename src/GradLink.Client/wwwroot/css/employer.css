@@ -136,7 +136,10 @@ font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backg
   .emp .e-menu span{display:block;height:2px;background:var(--ink);border-radius:2px}
   .emp .e-topbar{justify-content:space-between;padding:0 18px}.emp .e-head h1{font-size:30px}
   .emp .e-notifications{right:16px;top:58px}
-  .emp .e-trow{grid-template-columns:1fr 90px 30px}.emp .e-trow>:nth-child(2){display:none}
+  .emp .e-trow{display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;}
+  .emp .e-trow > :nth-child(1){width: 100%; flex: 1 1 100%;}
+  .emp .e-trow.th{display: none;}
+  .emp .e-trow>:nth-child(2){display:none}
   .emp .e-role{grid-template-columns:44px 1fr 60px 30px}.emp .e-role>:nth-child(4){display:none}
   .emp .e-fields{grid-template-columns:1fr}
   .emp .e-banner{align-items:flex-start;flex-direction:column;padding:22px;border-radius:18px}
@@ -151,5 +154,5 @@ font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backg
   .emp .e-topbar{gap:8px}.emp .e-bell{width:36px;height:36px}
   .emp .e-head{align-items:stretch}.emp .e-head .e-btn{justify-content:center}
   .emp .e-role{grid-template-columns:38px 1fr 26px;gap:8px;padding:14px 16px}.emp .e-role>:nth-child(3){display:none}
-  .emp .e-trow{grid-template-columns:1fr 26px;gap:8px;padding:16px}.emp .e-trow>:nth-child(3){display:none}
+  .emp .e-trow{padding:16px; gap:12px;}
 }
