@@ -88,6 +88,18 @@ public class JobService
         return await GetJobByIdAsync(job.Id);
     }
 
+    public async Task<bool> ToggleJobStatusAsync(int id, string employerId, bool isActive)
+    {
+        var job = await _context.JobListings
+            .FirstOrDefaultAsync(j => j.Id == id && j.EmployerId == employerId);
+
+        if (job == null) return false;
+
+        job.IsActive = isActive;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<bool> DeleteJobAsync(int id, string employerId)
     {
         var job = await _context.JobListings

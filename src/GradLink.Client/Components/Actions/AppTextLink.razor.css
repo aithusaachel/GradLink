@@ -1,0 +1,26 @@
+.app-text-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 160ms var(--ease-standard), opacity 160ms var(--ease-standard);
+}
+
+.app-text-link:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+}
+
+.app-text-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
+.app-text-link.full-width {
+    width: 100%;
+}

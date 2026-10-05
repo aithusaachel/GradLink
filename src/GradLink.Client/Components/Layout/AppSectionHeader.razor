@@ -1,0 +1,32 @@
+<div class="app-section-header @CssClass" style="@Style">
+    <div class="app-section-header-copy">
+        @if (!string.IsNullOrWhiteSpace(Eyebrow))
+        {
+            <div class="app-section-eyebrow">@Eyebrow</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Title))
+        {
+            <h2 class="app-section-title">@Title</h2>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="app-section-description">@Description</p>
+        }
+    </div>
+
+    @if (ActionContent is not null)
+    {
+        <div class="app-section-action">@ActionContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Eyebrow { get; set; } = "";
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+}

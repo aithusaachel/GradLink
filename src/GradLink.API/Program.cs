@@ -9,34 +9,59 @@ using GradLink.API.Data;
 using GradLink.API.Hubs;
 using GradLink.API.Infrastructure;
 using GradLink.API.Services;
+using GradLink.Shared.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add SQLite database
-builder.Services.AddDbContext<GradLinkDbContext>((services, options) =>
-    options.UseSqlite(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing in configuration.")));
+var dbUrl = builder.Configuration["DATABASE_URL"] ?? builder.Configuration["NeonDb"];
+if (!string.IsNullOrEmpty(dbUrl))
+{
+    // If it's a URI like postgresql://...
+    if (dbUrl.StartsWith("postgres://") || dbUrl.StartsWith("postgresql://"))
+    {
+        var uri = new Uri(dbUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var pgUser = userInfo[0];
+        var pgPass = userInfo.Length > 1 ? userInfo[1] : "";
+        dbUrl = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={pgUser};Password={pgPass};Ssl Mode=Require;Trust Server Certificate=true;";
+    }
+    builder.Services.AddDbContext<GradLinkDbContext>(options => options.UseNpgsql(dbUrl));
+}
+else
+{
+    // Fallback to SQLite for local development if no Postgres string is provided
+    builder.Services.AddDbContext<GradLinkDbContext>((services, options) =>
+        options.UseSqlite(services.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.")));
+}
 
 // Add Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
+    options.User.RequireUniqueEmail = true;
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
 })
 .AddEntityFrameworkStores<GradLinkDbContext>()
 .AddDefaultTokenProviders();
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException("JWT Key must be at least 32 bytes long for HS256 signing.");
+
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -46,6 +71,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.FromMinutes(1),
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "GradLink",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "GradLinkUsers",
         IssuerSigningKey = key,
@@ -53,20 +79,26 @@ builder.Services.AddAuthentication(options =>
         RoleClaimType = ClaimTypes.Role
     };
 
-    // Allow SignalR to receive token from query string
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            if (!string.IsNullOrEmpty(accessToken) && 
+                (path.StartsWithSegments("/hubs/notifications") || path.StartsWithSegments("/api/files/cv")))
             {
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
         }
     };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("GraduateOnly", policy => policy.RequireAuthenticatedUser().RequireRole(UserRole.Graduate.ToString()));
+    options.AddPolicy("EmployerOnly", policy => policy.RequireAuthenticatedUser().RequireRole(UserRole.Employer.ToString()));
 });
 
 // Add services
@@ -82,11 +114,40 @@ builder.Services.AddSignalR();
 // Add Controllers
 builder.Services.AddControllers();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "Enter: Bearer {your token}",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 // .NET 8 only adds a traceId to MVC-generated problem details; add it to the rest (exception handler,
 // status code pages) so every error response can be correlated with the server logs.
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
     context.ProblemDetails.Extensions.TryAdd("traceId", Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<KeepAliveService>();
 
 // CORS - allow the Blazor client
 builder.Services.AddCors(options =>
@@ -109,6 +170,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseSwagger();
+app.UseSwaggerUI();
+
 // Seed database
 using (var scope = app.Services.CreateScope())
 {
@@ -117,11 +181,16 @@ using (var scope = app.Services.CreateScope())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 app.UseCors("AllowBlazorClient");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapFallback("/api/{**path}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

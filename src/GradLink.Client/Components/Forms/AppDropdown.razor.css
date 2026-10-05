@@ -1,0 +1,91 @@
+.app-dropdown {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.app-dropdown-label {
+    display: block;
+    color: var(--color-text-primary);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 500;
+}
+
+.app-dropdown-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background-color: var(--color-surface);
+    cursor: pointer;
+    appearance: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    transition: border-color 160ms var(--ease-standard), box-shadow 160ms var(--ease-standard);
+}
+
+.app-dropdown-control:hover {
+    border-color: var(--color-accent);
+}
+
+.app-dropdown-control.open {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px var(--color-accent-tint);
+}
+
+.app-dropdown-value {
+    color: var(--color-text-primary);
+    font-size: 17px;
+    line-height: 26px;
+}
+
+.app-dropdown-chevron {
+    color: var(--color-text-secondary);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.app-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-modal);
+    z-index: 20;
+}
+
+.app-dropdown-option {
+    appearance: none;
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 20px;
+    cursor: pointer;
+    transition: background-color 160ms var(--ease-standard);
+}
+
+.app-dropdown-option:hover,
+.app-dropdown-option.selected {
+    background-color: var(--color-accent-tint);
+}

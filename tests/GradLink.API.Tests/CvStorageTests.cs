@@ -9,6 +9,8 @@ namespace GradLink.API.Tests;
 
 public sealed class CvStorageTests(GradLinkApiFactory factory) : IClassFixture<GradLinkApiFactory>
 {
+    private const string PdfHeader = "%PDF-1.4\n";
+
     private string CvDirectory =>
         Path.Combine(factory.Services.GetRequiredService<IWebHostEnvironment>().ContentRootPath, "Uploads", "CVs");
 
@@ -18,12 +20,12 @@ public sealed class CvStorageTests(GradLinkApiFactory factory) : IClassFixture<G
         var graduate = await factory.RegisterAsync(UserRole.Graduate);
 
         // Back-to-back uploads land in the same second.
-        (await UploadAsync(graduate, "first version")).EnsureSuccessStatusCode();
-        (await UploadAsync(graduate, "second version")).EnsureSuccessStatusCode();
+        (await UploadAsync(graduate, PdfHeader + "first version")).EnsureSuccessStatusCode();
+        (await UploadAsync(graduate, PdfHeader + "second version")).EnsureSuccessStatusCode();
 
         var download = await graduate.Client.GetAsync($"api/files/cv/{graduate.UserId}");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
-        Assert.Equal("second version", await download.Content.ReadAsStringAsync());
+        Assert.Equal(PdfHeader + "second version", await download.Content.ReadAsStringAsync());
         Assert.Single(Directory.GetFiles(CvDirectory, $"{graduate.UserId}_*"));
     }
 
@@ -41,7 +43,7 @@ public sealed class CvStorageTests(GradLinkApiFactory factory) : IClassFixture<G
     public async Task Cvs_stored_with_an_absolute_path_still_download()
     {
         var graduate = await factory.RegisterAsync(UserRole.Graduate);
-        (await UploadAsync(graduate, "legacy cv")).EnsureSuccessStatusCode();
+        (await UploadAsync(graduate, PdfHeader + "legacy cv")).EnsureSuccessStatusCode();
 
         // Older databases stored the absolute path on disk rather than just the file name.
         using (var scope = factory.Services.CreateScope())
@@ -54,7 +56,7 @@ public sealed class CvStorageTests(GradLinkApiFactory factory) : IClassFixture<G
 
         var download = await graduate.Client.GetAsync($"api/files/cv/{graduate.UserId}");
 
-        Assert.Equal("legacy cv", await download.Content.ReadAsStringAsync());
+        Assert.Equal(PdfHeader + "legacy cv", await download.Content.ReadAsStringAsync());
     }
 
     private static Task<HttpResponseMessage> UploadAsync(TestUser graduate, string content, string fileName = "cv.pdf")

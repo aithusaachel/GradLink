@@ -1,6 +1,9 @@
 <div class="app-card @(Hoverable ? "hoverable" : "") @(Padding ? "with-padding" : "") @CssClass" 
      style="@Style"
-     @onclick="HandleClick">
+    role="@(Hoverable && OnClick.HasDelegate ? "button" : null)"
+    tabindex="@(Hoverable && OnClick.HasDelegate ? "0" : null)"
+    @onclick="HandleClick"
+    @onkeydown="HandleKeyDown">
     @ChildContent
 </div>
 
@@ -19,5 +22,11 @@
         {
             await OnClick.InvokeAsync();
         }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ")
+            await HandleClick();
     }
 }

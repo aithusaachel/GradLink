@@ -50,6 +50,12 @@ public class FilesController : ControllerBase
         if (!CvContentTypes.ContainsKey(extension))
             return BadRequest("Only PDF and Word documents are allowed.");
 
+        await using (var content = file.OpenReadStream())
+        {
+            if (!IsLikelyValidCv(content, extension))
+                return BadRequest("The uploaded file is not a valid CV document.");
+        }
+
         var user = await _context.Users.FindAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
         if (user == null)
             return Unauthorized();
@@ -95,5 +101,41 @@ public class FilesController : ControllerBase
         var extension = Path.GetExtension(path);
         var contentType = CvContentTypes.GetValueOrDefault(extension, "application/octet-stream");
         return PhysicalFile(path, contentType, $"{user.FullName}_CV{extension}");
+    }
+
+    private static bool IsLikelyValidCv(Stream stream, string extension)
+    {
+        try
+        {
+            stream.Position = 0;
+            var header = new byte[8];
+            var bytesRead = stream.Read(header, 0, header.Length);
+            if (bytesRead < 4)
+                return false;
+
+            if (extension == ".pdf")
+                return header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46;
+
+            if (extension == ".doc")
+                return header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0;
+
+            if (extension == ".docx")
+            {
+                stream.Position = 0;
+                var zipHeader = new byte[4];
+                stream.Read(zipHeader, 0, zipHeader.Length);
+                return zipHeader[0] == 0x50 && zipHeader[1] == 0x4B && zipHeader[2] == 0x03 && zipHeader[3] == 0x04;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            stream.Position = 0;
+        }
     }
 }

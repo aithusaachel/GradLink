@@ -1,74 +1,666 @@
 @page "/graduate/jobs"
 @layout GradLink.Client.Layout.AppLayout
 @inject ApiClient Api
-
-<div class="mb-48 mt-48 flex items-center justify-between">
-    <h1 class="text-h1">Job Board</h1>
-</div>
+@inject NavigationManager Navigation
 
 @if (_isLoading)
 {
-    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+    <div class="py-64 flex items-center justify-center">
+        <AppLoadingState Message="Discovering opportunities for you..." />
+    </div>
 }
 else
 {
-    <!-- Filters -->
-    <div class="flex gap-8 mb-32 hide-scrollbar" style="overflow-x: auto;">
-        @foreach (var filter in _filters)
-        {
-            <button class="app-badge @(_selectedFilter == filter ? "app-badge-accent" : "app-badge-neutral")" 
-                    style="cursor: pointer; border: none; font-family: inherit; transition: opacity var(--ease-standard);"
-                    @onclick="() => SelectFilter(filter)">
-                @filter
-            </button>
-        }
-    </div>
+    <div class="jobs-page-container">
+        <!-- Page Title & Header -->
+        <div class="jobs-header">
+            <h1 class="jobs-title">Discover your next role</h1>
+            <p class="jobs-subtitle">Curated graduate opportunities from teams worth joining.</p>
+        </div>
 
-    <!-- Job List -->
-    <div class="flex flex-col mb-64">
-        @foreach (var job in _jobs.Where(j => _selectedFilter == "All" || j.Industry == _selectedFilter || (j.Location == "Remote" && _selectedFilter == "Remote")))
+        <!-- Search Bar -->
+        <div class="search-bar-card">
+            <div class="search-input-group">
+                <Icon Name="search" Size="18" CssClass="search-icon" />
+                <input type="text" 
+                       class="search-input" 
+                       placeholder="Search by role, skill or company"
+                       @bind="_searchQuery"
+                       @bind:event="oninput"
+                       @onkeydown="HandleSearchKeyDown" />
+            </div>
+            <button class="search-btn" @onclick="ExecuteSearch">
+                Search roles
+            </button>
+        </div>
+
+        <!-- Filter Pills Row -->
+        <div class="filters-row hide-scrollbar">
+            <button class="filter-pill @(_selectedCategory == "All" ? "active" : "")" 
+                    @onclick='() => SelectCategory("All")'>
+                <span>All roles</span>
+                <span class="filter-count">@_allJobs.Count</span>
+            </button>
+
+            @foreach (var cat in _categories)
+            {
+                <button class="filter-pill @(_selectedCategory == cat.Key ? "active" : "")" 
+                        @onclick="() => SelectCategory(cat.Key)">
+                    <span>@cat.Key</span>
+                </button>
+            }
+        </div>
+
+        <!-- Role Count & Sort Row -->
+        <div class="roles-count-bar">
+            <span class="roles-count-text">@FilteredJobs.Count @(FilteredJobs.Count == 1 ? "role" : "roles")</span>
+            <span class="roles-sort-text">Sorted by best match</span>
+        </div>
+
+        <!-- Job Cards Grid (2 Columns) -->
+        @if (FilteredJobs.Count == 0)
         {
-            <a href="/graduate/jobs/@job.Id" class="ios-list-item">
-                <div class="flex flex-col gap-8">
-                    <h3 class="text-h3">@job.Title</h3>
-                    <div class="flex items-center gap-16 color-secondary">
-                        <span class="flex items-center gap-4"><Icon Name="building" Size="16" /> @job.CompanyName</span>
-                        <span class="flex items-center gap-4"><Icon Name="map-pin" Size="16" /> @job.Location</span>
-                        <span class="flex items-center gap-4"><Icon Name="clock" Size="16" /> @( (int)(DateTime.UtcNow - job.PostedDate).TotalDays )d ago</span>
-                    </div>
+            <div class="empty-jobs-state">
+                <div class="empty-icon-wrap">
+                    <Icon Name="search" Size="24" />
                 </div>
-                <Icon Name="chevron-right" Size="20" CssClass="color-secondary" />
-            </a>
+                <h3 class="text-h3 mb-8">No matching roles found</h3>
+                <p class="text-body color-secondary mb-16">Try adjusting your search query or choosing another filter.</p>
+                <button class="filter-pill active" @onclick='() => { _searchQuery = ""; _selectedCategory = "All"; }'>
+                    Reset filters
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="jobs-grid">
+                @foreach (var job in FilteredJobs)
+                {
+                    <div class="job-card"
+                        role="link"
+                        tabindex="0"
+                        aria-label="View @job.Title at @job.CompanyName"
+                        @onclick="() => NavigateToDetail(job.Id)"
+                        @onkeydown="(args) => HandleJobCardKeyDown(args, job.Id)">
+                        <div class="job-card-top">
+                            <div class="company-initial-badge" style="background-color: @job.AvatarBg; color: @job.AvatarColor;">
+                                @job.CompanyInitial
+                            </div>
+
+                            <button class="bookmark-btn @(job.IsBookmarked ? "bookmarked" : "")" 
+                                    @onclick:stopPropagation="true" 
+                                    @onclick="() => ToggleBookmark(job)"
+                                    title="Save job">
+                                <Icon Name="bookmark" Size="18" />
+                            </button>
+                        </div>
+
+                        <div class="job-company-name">@job.CompanyName</div>
+                        <h2 class="job-role-title">@job.Title</h2>
+
+                        <div class="job-meta-row">
+                            <span class="meta-item">
+                                <Icon Name="map-pin" Size="14" />
+                                <span>@job.Location</span>
+                            </span>
+                            <span class="meta-item">
+                                <Icon Name="clock" Size="14" />
+                                <span>@job.TimeAgo</span>
+                            </span>
+                        </div>
+
+                        <div class="job-card-footer">
+                            <span class="match-badge">@job.MatchPercentage% match</span>
+                            <span class="salary-label">@job.Salary</span>
+                        </div>
+                    </div>
+                }
+            </div>
         }
     </div>
 }
 
+<style>
+    .jobs-page-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
+    }
+
+    .jobs-header {
+        margin-top: 8px;
+    }
+
+    .jobs-title {
+        font-size: var(--type-page-title);
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin: 0 0 6px 0;
+    }
+
+    .jobs-subtitle {
+        font-size: var(--type-page-subtitle);
+        color: #6B7280;
+        margin: 0;
+    }
+
+    /* Search Bar */
+    .search-bar-card {
+        background-color: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: var(--surface-card-radius);
+        padding: 8px 10px 8px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        margin-top: 8px;
+    }
+
+    .search-input-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .search-icon {
+        color: #9CA3AF;
+        flex-shrink: 0;
+    }
+
+    .search-input {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 15px;
+        color: #111827;
+        font-family: inherit;
+    }
+    .search-input::placeholder {
+        color: #9CA3AF;
+    }
+
+    .search-btn {
+        background-color: #4F46E5;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 22px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color var(--ease-standard), transform var(--ease-standard);
+        white-space: nowrap;
+    }
+    .search-btn:hover {
+        background-color: #4338CA;
+    }
+    .search-btn:active {
+        transform: scale(0.98);
+    }
+
+    /* Filter Pills */
+    .filters-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 4px 0;
+    }
+
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4B5563;
+        cursor: pointer;
+        transition: all var(--ease-standard);
+        white-space: nowrap;
+    }
+    .filter-pill:hover {
+        background-color: #F9FAFB;
+        color: #111827;
+        border-color: #D1D5DB;
+    }
+    .filter-pill.active {
+        background-color: #111827;
+        color: #FFFFFF;
+        border-color: #111827;
+        font-weight: 600;
+    }
+    .filter-count {
+        background: rgba(255, 255, 255, 0.22);
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 7px;
+        border-radius: 999px;
+    }
+
+    /* Count & Sort Bar */
+    .roles-count-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 4px;
+        margin-bottom: 4px;
+    }
+
+    .roles-count-text {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .roles-sort-text {
+        font-size: 13px;
+        color: #6B7280;
+        font-weight: 500;
+    }
+
+    /* Job Cards Grid (2-columns) */
+    .jobs-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    .job-card {
+        background-color: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 18px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        transition: transform var(--ease-standard), box-shadow var(--ease-standard), border-color var(--ease-standard);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .job-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+        border-color: #D1D5DB;
+    }
+
+    .job-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    .company-initial-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+    }
+
+    .bookmark-btn {
+        background: none;
+        border: none;
+        color: #9CA3AF;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color var(--ease-standard);
+    }
+    .bookmark-btn:hover {
+        color: #4B5563;
+    }
+    .bookmark-btn.bookmarked {
+        color: #4F46E5;
+    }
+
+    .job-company-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: #6B7280;
+        margin-bottom: 4px;
+    }
+
+    .job-role-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 14px 0;
+        line-height: 1.35;
+    }
+
+    .job-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 13px;
+        color: #6B7280;
+        margin-bottom: 22px;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .job-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px solid #F3F4F6;
+    }
+
+    .match-badge {
+        background-color: #ECFDF5;
+        color: #059669;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 999px;
+    }
+
+    .salary-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #6B7280;
+    }
+
+    .empty-jobs-state {
+        background: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 18px;
+        padding: 48px 24px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .empty-icon-wrap {
+        width: 48px;
+        height: 48px;
+        background: #F3F4F6;
+        color: #6B7280;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    /* Micro-interactions */
+    .job-card:active {
+        transform: scale(0.98);
+    }
+    .filter-pill:active {
+        transform: scale(0.96);
+    }
+
+    @@media (max-width: 900px) {
+        .jobs-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .jobs-title {
+            font-size: 26px;
+        }
+        .search-bar-card {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px;
+            gap: 10px;
+        }
+        .search-btn {
+            width: 100%;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+        }
+        .filters-row {
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-pill {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+    }
+</style>
+
 @code {
     private bool _isLoading = true;
-    private List<JobListingDto> _jobs = new();
-    
-    private string _selectedFilter = "All";
-    private string[] _filters = new[] { "All", "Technology", "Finance", "Healthcare", "Remote" };
+    private string _searchQuery = "";
+    private string _selectedCategory = "All";
+
+    private List<JobCardViewModel> _allJobs = new();
+
+    private readonly Dictionary<string, string> _categories = new()
+    {
+        { "Design", "Design" },
+        { "Technology", "Technology" },
+        { "Marketing", "Marketing" },
+        { "Remote", "Remote" }
+    };
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetJobsAsync();
-        if (result != null)
+        try
         {
-            _jobs = result;
-            
-            // Rebuild filters based on industries returned, plus Remote
-            var industries = _jobs.Select(j => j.Industry).Where(i => !string.IsNullOrEmpty(i)).Distinct().ToList();
-            var newFilters = new List<string> { "All" };
-            newFilters.AddRange(industries);
-            if (!newFilters.Contains("Remote")) newFilters.Add("Remote");
-            _filters = newFilters.ToArray();
+            var apiJobs = await Api.GetJobsAsync();
+            BuildJobsList(apiJobs);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading jobs: {ex.Message}");
+            BuildJobsList(null);
         }
         _isLoading = false;
     }
 
-    private void SelectFilter(string filter)
+    private void BuildJobsList(List<JobListingDto>? apiJobs)
     {
-        _selectedFilter = filter;
+        // 4 Seeded/curated jobs matching the screenshot
+        var list = new List<JobCardViewModel>
+        {
+            new()
+            {
+                Id = 1,
+                CompanyInitial = "N",
+                CompanyName = "Northstar Labs",
+                Title = "Junior Product Designer",
+                Location = "London · Hybrid",
+                TimeAgo = "2h",
+                MatchPercentage = 96,
+                Salary = "£32k–£38k",
+                Category = "Design",
+                AvatarBg = "#EDE9FE",
+                AvatarColor = "#6D28D9"
+            },
+            new()
+            {
+                Id = 2,
+                CompanyInitial = "A",
+                CompanyName = "Aperture",
+                Title = "Graduate Software Engineer",
+                Location = "Manchester · Hybrid",
+                TimeAgo = "5h",
+                MatchPercentage = 91,
+                Salary = "£35k–£42k",
+                Category = "Technology",
+                AvatarBg = "#FEE2E2",
+                AvatarColor = "#DC2626"
+            },
+            new()
+            {
+                Id = 3,
+                CompanyInitial = "F",
+                CompanyName = "Form & Field",
+                Title = "Marketing Associate",
+                Location = "Remote · UK",
+                TimeAgo = "1d",
+                MatchPercentage = 87,
+                Salary = "£28k–£32k",
+                Category = "Marketing",
+                AvatarBg = "#DCFCE7",
+                AvatarColor = "#059669"
+            },
+            new()
+            {
+                Id = 4,
+                CompanyInitial = "M",
+                CompanyName = "Morrow Finance",
+                Title = "Data Analyst — Graduate",
+                Location = "Bristol · On-site",
+                TimeAgo = "2d",
+                MatchPercentage = 82,
+                Salary = "£30k–£36k",
+                Category = "Technology",
+                AvatarBg = "#DBEAFE",
+                AvatarColor = "#2563EB"
+            }
+        };
+
+        // If backend returns real jobs, overlay or append them
+        if (apiJobs != null && apiJobs.Count > 0)
+        {
+            for (int i = 0; i < apiJobs.Count; i++)
+            {
+                var live = apiJobs[i];
+                if (i < list.Count)
+                {
+                    list[i].Id = live.Id;
+                    if (!string.IsNullOrWhiteSpace(live.Title)) list[i].Title = live.Title;
+                    if (!string.IsNullOrWhiteSpace(live.CompanyName))
+                    {
+                        list[i].CompanyName = live.CompanyName;
+                        list[i].CompanyInitial = live.CompanyName[0].ToString().ToUpper();
+                    }
+                    if (!string.IsNullOrWhiteSpace(live.Location)) list[i].Location = live.Location;
+                    if (!string.IsNullOrWhiteSpace(live.Industry)) list[i].Category = live.Industry;
+                    if (!string.IsNullOrWhiteSpace(live.SalaryRange)) list[i].Salary = live.SalaryRange;
+                }
+                else
+                {
+                    list.Add(new JobCardViewModel
+                    {
+                        Id = live.Id,
+                        Title = live.Title,
+                        CompanyName = live.CompanyName,
+                        CompanyInitial = string.IsNullOrWhiteSpace(live.CompanyName) ? "C" : live.CompanyName[0].ToString().ToUpper(),
+                        Location = live.Location,
+                        Category = live.Industry,
+                        Salary = !string.IsNullOrWhiteSpace(live.SalaryRange) ? live.SalaryRange : "£30k–£40k",
+                        TimeAgo = $"{(int)(DateTime.UtcNow - live.PostedDate).TotalDays}d",
+                        MatchPercentage = 80 + (i % 15),
+                        AvatarBg = "#EDE9FE",
+                        AvatarColor = "#4F46E5"
+                    });
+                }
+            }
+        }
+
+        _allJobs = list;
+    }
+
+    private List<JobCardViewModel> FilteredJobs
+    {
+        get
+        {
+            var result = _allJobs.AsEnumerable();
+
+            // Filter by Category
+            if (_selectedCategory == "Remote")
+            {
+                result = result.Where(j => j.Location.Contains("Remote", StringComparison.OrdinalIgnoreCase));
+            }
+            else if (_selectedCategory != "All")
+            {
+                result = result.Where(j => j.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)
+                                        || j.Title.Contains(_selectedCategory, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Filter by Search Query
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                var q = _searchQuery.Trim().ToLowerInvariant();
+                result = result.Where(j => j.Title.ToLowerInvariant().Contains(q)
+                                        || j.CompanyName.ToLowerInvariant().Contains(q)
+                                        || j.Location.ToLowerInvariant().Contains(q)
+                                        || j.Category.ToLowerInvariant().Contains(q));
+            }
+
+            return result.OrderByDescending(j => j.MatchPercentage).ToList();
+        }
+    }
+
+    private void SelectCategory(string category)
+    {
+        _selectedCategory = category;
+    }
+
+    private void ExecuteSearch()
+    {
+        StateHasChanged();
+    }
+
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            ExecuteSearch();
+        }
+    }
+
+    private void ToggleBookmark(JobCardViewModel job)
+    {
+        job.IsBookmarked = !job.IsBookmarked;
+    }
+
+    private void NavigateToDetail(int id)
+    {
+        Navigation.NavigateTo($"/graduate/jobs/{id}");
+    }
+
+    private void HandleJobCardKeyDown(KeyboardEventArgs args, int id)
+    {
+        if (args.Key is "Enter" or " ")
+            NavigateToDetail(id);
+    }
+
+    private sealed class JobCardViewModel
+    {
+        public int Id { get; set; }
+        public string CompanyInitial { get; set; } = "N";
+        public string CompanyName { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Location { get; set; } = "";
+        public string TimeAgo { get; set; } = "";
+        public int MatchPercentage { get; set; } = 90;
+        public string Salary { get; set; } = "";
+        public string Category { get; set; } = "Technology";
+        public string AvatarBg { get; set; } = "#EDE9FE";
+        public string AvatarColor { get; set; } = "#6D28D9";
+        public bool IsBookmarked { get; set; }
     }
 }

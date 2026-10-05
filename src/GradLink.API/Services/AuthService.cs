@@ -22,6 +22,15 @@ public class AuthService
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
     {
+        if (!Enum.IsDefined(typeof(UserRole), dto.Role))
+            return new AuthResponseDto { Success = false, Message = "Invalid account role selected." };
+
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password) || string.IsNullOrWhiteSpace(dto.FullName))
+            return new AuthResponseDto { Success = false, Message = "Email, password, and full name are required." };
+
+        dto.Email = dto.Email.Trim();
+        dto.FullName = dto.FullName.Trim();
+
         var existingUser = await _userManager.FindByEmailAsync(dto.Email);
         if (existingUser != null)
             return new AuthResponseDto { Success = false, Message = "An account with this email already exists." };
@@ -61,6 +70,8 @@ public class AuthService
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
+        dto.Email = dto.Email.Trim();
+
         var user = await _userManager.FindByEmailAsync(dto.Email);
         if (user == null)
             return new AuthResponseDto { Success = false, Message = "Invalid email or password." };
@@ -84,14 +95,18 @@ public class AuthService
     private string GenerateJwtToken(ApplicationUser user)
     {
         var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
+        if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+            throw new InvalidOperationException("JWT Key must be at least 32 bytes long for HS256 signing.");
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Email, user.Email ?? ""),
-            new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new(JwtRegisteredClaimNames.Sub, user.Id),
+            new(ClaimTypes.NameIdentifier, user.Id),
+            new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(ClaimTypes.Name, user.FullName),
+            new(ClaimTypes.Role, user.Role.ToString())
         };
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -100,6 +115,7 @@ public class AuthService
             issuer: _configuration["Jwt:Issuer"] ?? "GradLink",
             audience: _configuration["Jwt:Audience"] ?? "GradLinkUsers",
             claims: claims,
+            notBefore: DateTime.UtcNow,
             expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: credentials
         );

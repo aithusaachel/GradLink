@@ -61,6 +61,7 @@ public class ProfileService
                 Industry = u.Industry,
                 Description = u.CompanyDescription,
                 Website = u.Website,
+                CompanySize = u.CompanySize,
                 JobCount = u.JobListings.Count,
                 CreatedAt = u.CreatedAt
             })
@@ -76,6 +77,7 @@ public class ProfileService
         if (dto.Industry != null) user.Industry = dto.Industry;
         if (dto.Description != null) user.CompanyDescription = dto.Description;
         if (dto.Website != null) user.Website = dto.Website;
+        if (dto.CompanySize != null) user.CompanySize = dto.CompanySize;
 
         await _context.SaveChangesAsync();
         return await GetEmployerProfileAsync(userId);

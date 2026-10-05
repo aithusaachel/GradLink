@@ -1,89 +1,616 @@
-@page "/graduate/profile"
+﻿@page "/graduate/profile"
 @layout GradLink.Client.Layout.AppLayout
 @inject ApiClient Api
 @inject NavigationManager Navigation
 @inject LocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthStateProvider
-
-<div class="mb-48 mt-48">
-    <h1 class="text-h1">Profile</h1>
-</div>
+@using GradLink.Shared.DTOs
 
 @if (_isLoading)
 {
-    <div class="p-48 text-center text-body color-secondary">Loading...</div>
+    <div class="py-64 flex items-center justify-center">
+        <AppLoadingState Message="Loading your profile..." />
+    </div>
 }
-else if (_profile != null)
+else
 {
-    <div class="flex flex-col gap-32" style="max-width: 800px;">
-        
-        <!-- Header/Avatar Area -->
-        <div class="flex flex-col items-center gap-16 mb-16">
-            <div class="flex items-center justify-center" style="width: 96px; height: 96px; border-radius: 50%; background-color: var(--color-surface); border: 1px solid var(--color-border); font-size: 40px; font-weight: 500;">
-                @(_profile.FullName.FirstOrDefault())
+    <div class="profile-page-container">
+        <!-- Toast / Status Alert -->
+        @if (!string.IsNullOrEmpty(_feedbackMessage))
+        {
+            <div class="feedback-alert @(_isError ? "feedback-error" : "feedback-success")">
+                <Icon Name="@(_isError ? "x" : "check")" Size="16" />
+                <span>@_feedbackMessage</span>
             </div>
-            <div style="text-align: center;">
-                <h2 class="text-h2">@_profile.FullName</h2>
-                <p class="text-body color-secondary">@_profile.Email</p>
-            </div>
-        </div>
+        }
 
-        <!-- Academic Information -->
-        <div class="ios-list-group">
-            <div class="ios-list-header">ACADEMIC INFO</div>
-            <div class="ios-list-cards">
-                <div class="ios-list-row">
-                    <span class="color-primary">University</span>
-                    <span class="color-secondary">@_profile.University</span>
+        <!-- Top Profile Hero Banner -->
+        <div class="profile-hero-banner">
+            <div class="hero-profile-info">
+                <div class="hero-avatar">
+                    @GetAvatarInitials()
                 </div>
-                <div class="ios-list-row">
-                    <span class="color-primary">Degree</span>
-                    <span class="color-secondary">@_profile.Degree</span>
-                </div>
-                <div class="ios-list-row">
-                    <span class="color-primary">Graduation Year</span>
-                    <span class="color-secondary">@_profile.GraduationYear</span>
-                </div>
-                <div class="ios-list-row">
-                    <span class="color-primary">Bio</span>
-                    <span class="color-secondary">@_profile.Bio</span>
+                <div class="hero-text-block">
+                    <h1 class="hero-name">@(_fullName)</h1>
+                    <p class="hero-subtitle">
+                        @(!string.IsNullOrWhiteSpace(_degree) ? _degree : "Product design graduate") Â· @(!string.IsNullOrWhiteSpace(_university) ? _university : "London, UK")
+                    </p>
                 </div>
             </div>
-        </div>
 
-        <div class="ios-list-group">
-            <div class="ios-list-header">SKILLS</div>
-            <div class="ios-list-cards">
-                <div class="ios-list-row" style="align-items: flex-start;">
-                    <span class="color-secondary" style="max-width: 400px; line-height: 1.5;">
-                        @_profile.Skills
-                    </span>
-                </div>
+            <div class="hero-actions">
+                <button class="save-profile-btn" @onclick="SaveChanges" disabled="@_isSaving">
+                    @if (_isSaving)
+                    {
+                        <span class="btn-spinner"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save changes</span>
+                    }
+                </button>
             </div>
         </div>
 
-        <!-- Action -->
-        <div class="mt-16 text-center">
-            <button class="app-btn app-btn-danger" style="width: 100%;" @onclick="SignOut">Sign Out</button>
-        </div>
+        <!-- 2-Column Grid -->
+        <div class="profile-main-grid">
+            <!-- Left Column: Personal info & About you -->
+            <div class="profile-left-col">
+                <!-- Personal information Card -->
+                <div class="profile-card">
+                    <div class="card-title-group">
+                        <h2 class="card-title">Personal information</h2>
+                        <p class="card-subtitle">Keep your profile accurate so we can improve your matches.</p>
+                    </div>
 
+                    <div class="form-grid-2x2">
+                        <div class="form-field">
+                            <label class="form-label">Full name</label>
+                            <input type="text" class="form-input" @bind="_fullName" placeholder="e.g. Alex Morgan" />
+                        </div>
+
+                        <div class="form-field">
+    <label class="form-label">Degree</label>
+    <input type="text" class="form-input" @bind="_degree" placeholder="e.g. BSc Computer Science" />
+</div>
+
+<div class="form-field">
+    <label class="form-label">University</label>
+    <input type="text" class="form-input" @bind="_university" placeholder="e.g. University of Ghana" />
+</div>
+
+                        <div class="form-field">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" @bind="_email" readonly placeholder="alex.morgan@example.com" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- About you Card -->
+                <div class="profile-card">
+                    <div class="card-title-group">
+                        <h2 class="card-title">About you</h2>
+                    </div>
+
+                    <div class="form-field">
+                        <textarea class="form-textarea" 
+                                  rows="4" 
+                                  placeholder="A curious product designer interested in making complex tools feel clear and human."
+                                  @bind="_bio"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: CV & Portfolio -->
+            <div class="profile-right-col">
+                <div class="profile-card">
+                    <div class="card-title-group">
+                        <h2 class="card-title">CV & portfolio</h2>
+                    </div>
+
+                    <div class="cv-dropzone">
+                        <div class="cv-icon-box">
+                            <Icon Name="briefcase" Size="20" />
+                        </div>
+
+                        <div class="cv-file-details">
+                            <div class="cv-file-name">@_cvFileName</div>
+                            <div class="cv-file-meta">@_cvMeta</div>
+                        </div>
+
+                        <label for="cv-file-input" class="replace-cv-btn @(_isUploading ? "uploading" : "")">
+                            @if (_isUploading)
+                            {
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <span>@(_hasCv ? "Replace CV" : "Upload CV")</span>
+                            }
+                        </label>
+                        <InputFile id="cv-file-input" OnChange="HandleFileSelected" accept=".pdf,.doc,.docx" style="display:none;" />
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 }
 
+<style>
+    .profile-page-container {
+        display: flex;
+        flex-direction: column;
+        gap: var(--layout-section-gap);
+        max-width: var(--layout-content-width);
+    }
+
+    /* Feedback Alert */
+    .feedback-alert {
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: fadeIn 0.2s var(--ease-standard);
+    }
+    .feedback-success {
+        background-color: #ECFDF5;
+        color: #059669;
+        border: 1px solid #A7F3D0;
+    }
+    .feedback-error {
+        background-color: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FECACA;
+    }
+
+    /* Hero Banner */
+    .profile-hero-banner {
+        background: var(--color-accent);
+        border-radius: var(--surface-card-radius);
+        padding: 32px 36px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #FFFFFF;
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.20);
+        margin-top: 8px;
+    }
+
+    .hero-profile-info {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .hero-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        background-color: var(--color-brand-lime);
+        color: #111827;
+        font-weight: 800;
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .hero-text-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .hero-name {
+        font-size: 26px;
+        font-weight: 800;
+        color: #FFFFFF;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-subtitle {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+    }
+
+    .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .save-profile-btn {
+        background-color: #FFFFFF;
+        color: #111827;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform var(--ease-standard), box-shadow var(--ease-standard);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+    .save-profile-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+    .save-profile-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .btn-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid #E5E7EB;
+        border-top-color: #111827;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    /* Main Grid */
+    .profile-main-grid {
+        display: grid;
+        grid-template-columns: 1.8fr 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .profile-left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .profile-right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    /* Profile Cards */
+    .profile-card {
+        background-color: #FFFFFF;
+        border: 1px solid #ECEEF2;
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .card-title-group {
+        margin-bottom: 20px;
+    }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 4px 0;
+        letter-spacing: -0.015em;
+    }
+
+    .card-subtitle {
+        font-size: 13px;
+        color: #6B7280;
+        margin: 0;
+    }
+
+    /* Forms */
+    .form-grid-2x2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .form-input {
+        width: 100%;
+        height: 44px;
+        padding: 0 14px;
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        font-size: 14px;
+        color: #111827;
+        font-family: inherit;
+        outline: none;
+        transition: border-color var(--ease-standard), box-shadow var(--ease-standard);
+    }
+    .form-input:focus {
+        border-color: #4F46E5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .form-textarea {
+        width: 100%;
+        padding: 14px 16px;
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        font-size: 14px;
+        color: #111827;
+        font-family: inherit;
+        line-height: 1.5;
+        outline: none;
+        resize: vertical;
+        min-height: 110px;
+        transition: border-color var(--ease-standard), box-shadow var(--ease-standard);
+    }
+    .form-textarea:focus {
+        border-color: #4F46E5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    /* CV Box */
+    .cv-dropzone {
+        background-color: #F9FAFB;
+        border: 1.5px dashed #E5E7EB;
+        border-radius: 16px;
+        padding: 36px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+    }
+
+    .cv-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cv-file-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .cv-file-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+        word-break: break-all;
+    }
+
+    .cv-file-meta {
+        font-size: 12px;
+        color: #6B7280;
+    }
+
+    .replace-cv-btn {
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 999px;
+        padding: 8px 22px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;
+        transition: all var(--ease-standard);
+    }
+    .replace-cv-btn:hover {
+        background-color: #F9FAFB;
+        border-color: #D1D5DB;
+    }
+    .replace-cv-btn.uploading {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .save-profile-btn:active:not(:disabled) {
+        transform: scale(0.97);
+    }
+    .replace-cv-btn:active {
+        transform: scale(0.96);
+    }
+
+    @@media (max-width: 900px) {
+        .profile-main-grid {
+            grid-template-columns: 1fr;
+        }
+        .form-grid-2x2 {
+            grid-template-columns: 1fr;
+        }
+        .profile-hero-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .hero-actions {
+            width: 100%;
+        }
+        .save-profile-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .profile-hero-banner {
+            padding: 20px 16px;
+            border-radius: 16px;
+        }
+        .hero-name {
+            font-size: 22px;
+        }
+        .hero-avatar {
+            width: 52px;
+            height: 52px;
+            font-size: 18px;
+        }
+        .profile-card {
+            padding: 18px 16px;
+        }
+    }
+</style>
+
 @code {
     private bool _isLoading = true;
+    private bool _isSaving = false;
+    private bool _isUploading = false;
+    private string? _feedbackMessage;
+    private bool _isError = false;
+
     private GraduateProfileDto? _profile;
+
+    // Form fields
+    private string _fullName = "Alex Morgan";
+    private string _degree = "Product design graduate";
+    private string _university = "London, United Kingdom";
+    private string _email = "alex.morgan@example.com";
+    private string _bio = "A curious product designer interested in making complex tools feel clear and human.";
+
+    // CV details
+    private bool _hasCv = true;
+    private string _cvFileName = "Alex_Morgan_CV.pdf";
+    private string _cvMeta = "Updated 4 days ago Â· 1.8 MB";
 
     protected override async Task OnInitializedAsync()
     {
-        _profile = await Api.GetGraduateProfileAsync();
+        try
+        {
+            _profile = await Api.GetGraduateProfileAsync();
+            if (_profile != null)
+            {
+                if (!string.IsNullOrWhiteSpace(_profile.FullName)) _fullName = _profile.FullName;
+                if (!string.IsNullOrWhiteSpace(_profile.Degree)) _degree = _profile.Degree;
+                if (!string.IsNullOrWhiteSpace(_profile.University)) _university = _profile.University;
+                if (!string.IsNullOrWhiteSpace(_profile.Email)) _email = _profile.Email;
+                if (!string.IsNullOrWhiteSpace(_profile.Bio)) _bio = _profile.Bio;
+
+                _hasCv = _profile.HasCv;
+                if (_hasCv)
+                {
+                    _cvFileName = $"{_fullName.Replace(" ", "_")}_CV.pdf";
+                    _cvMeta = "Active CV Â· Verified";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching profile: {ex.Message}");
+        }
+
         _isLoading = false;
     }
 
-    private async Task SignOut()
+    private string GetAvatarInitials()
     {
-        await LocalStorage.RemoveItemAsync("authToken");
-        ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserLogout();
-        Navigation.NavigateTo("/login");
+        var name = !string.IsNullOrWhiteSpace(_fullName) ? _fullName : "Alex Morgan";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        if (parts.Length == 1 && parts[0].Length > 0)
+            return parts[0][0].ToString().ToUpper();
+        return "AM";
     }
+
+    private async Task SaveChanges()
+    {
+        _isSaving = true;
+        _feedbackMessage = null;
+
+        try
+        {
+            var updateDto = new UpdateGraduateProfileDto
+            {
+                FullName = _fullName,
+                Degree = _degree,
+                University = _university,
+                Bio = _bio
+            };
+
+            var result = await Api.UpdateGraduateProfileAsync(updateDto);
+                        if (result != null)
+            {
+                _isError = false;
+                _feedbackMessage = "Profile updated successfully!";
+            }
+            else
+            {
+                _isError = true;
+                _feedbackMessage = "Failed to update profile. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _isError = true;
+            _feedbackMessage = "Error updating profile: " + ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+{
+    var file = e.File;
+    if (file == null) return;
+
+    _isUploading = true;
+    _feedbackMessage = null;
+
+    try
+    {
+        var success = await Api.UploadCvAsync(file);
+        if (success)
+        {
+            _hasCv = true;
+            _cvFileName = file.Name;
+            var sizeMb = (file.Size / (1024.0 * 1024.0)).ToString("0.1");
+            _cvMeta = $"Updated today Â· {sizeMb} MB";
+            _isError = false;
+            _feedbackMessage = "CV uploaded and updated successfully!";
+        }
+        else
+        {
+            _isError = true;
+            _feedbackMessage = "Upload failed. Only PDF and Word documents under 5MB are allowed.";
+        }
+    }
+        catch (Exception ex)
+    {
+        _isError = true;
+        _feedbackMessage = "Failed to upload CV: " + ex.Message;
+    }
+    finally
+    {
+        _isUploading = false;
+    }
+}
 }

@@ -1,0 +1,64 @@
+<div class="app-list-item @(Clickable ? "clickable" : "") @CssClass" style="@Style"
+    role="@(Clickable && OnClick.HasDelegate ? "button" : null)"
+    tabindex="@(Clickable && OnClick.HasDelegate ? "0" : null)"
+    aria-label="@(Clickable ? Title : null)"
+    @onclick="HandleClick" @onkeydown="HandleKeyDown">
+    <div class="app-list-item-main">
+        @if (LeadingContent is not null)
+        {
+            <div class="app-list-item-leading">@LeadingContent</div>
+        }
+
+        <div class="app-list-item-copy">
+            @if (!string.IsNullOrWhiteSpace(Title))
+            {
+                <div class="app-list-item-title">@Title</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <div class="app-list-item-subtitle">@Subtitle</div>
+            }
+        </div>
+    </div>
+
+    @if (TrailingContent is not null || !string.IsNullOrWhiteSpace(TrailingText))
+    {
+        <div class="app-list-item-trailing">
+            @if (TrailingContent is not null)
+            {
+                @TrailingContent
+            }
+            else if (!string.IsNullOrWhiteSpace(TrailingText))
+            {
+                <span class="app-list-item-trailing-text">@TrailingText</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Subtitle { get; set; } = "";
+    [Parameter] public string TrailingText { get; set; } = "";
+    [Parameter] public bool Clickable { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+    [Parameter] public RenderFragment? LeadingContent { get; set; }
+    [Parameter] public RenderFragment? TrailingContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (Clickable && OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ")
+            await HandleClick();
+    }
+}
