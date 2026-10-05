@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using GradLink.Shared.DTOs;
 using Microsoft.AspNetCore.Components;
 
@@ -7,6 +8,8 @@ namespace GradLink.Client.Services;
 
 public class ApiClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly HttpClient _http;
     private readonly LocalStorageService _localStorage;
     private readonly NavigationManager _navManager;
@@ -21,10 +24,9 @@ public class ApiClient
     private async Task PrepareBearerTokenAsync()
     {
         var token = await _localStorage.GetItemAsync("authToken");
-        if (!string.IsNullOrEmpty(token))
-        {
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        }
+        // Clear the header after logout; the HttpClient outlives the session and would keep sending the old token.
+        _http.DefaultRequestHeaders.Authorization =
+            string.IsNullOrEmpty(token) ? null : new AuthenticationHeaderValue("Bearer", token);
     }
     
     private void CheckUnauthorized(HttpResponseMessage response)
@@ -87,47 +89,23 @@ public class ApiClient
     }
 
     // Auth
-    public async Task<AuthResponseDto?> RegisterAsync(RegisterDto dto)
-    {
-        try 
-        {
-            var response = await _http.PostAsJsonAsync("api/auth/register", dto);
-            var content = await response.Content.ReadAsStringAsync();
-            
-            if (response.IsSuccessStatusCode)
-            {
-                if (!string.IsNullOrWhiteSpace(content))
-                    return System.Text.Json.JsonSerializer.Deserialize<AuthResponseDto>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            else
-            {
-                return ParseErrorResponse(content, "Registration failed.");
-            }
-            return new AuthResponseDto { Success = false, Message = "Registration failed." };
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponseDto { Success = false, Message = "Network error: " + ex.Message };
-        }
-    }
+    public Task<AuthResponseDto?> RegisterAsync(RegisterDto dto) =>
+        PostAuthAsync("api/auth/register", dto, "Registration failed.");
 
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto dto)
+    public Task<AuthResponseDto?> LoginAsync(LoginDto dto) =>
+        PostAuthAsync("api/auth/login", dto, "Invalid email or password.");
+
+    private async Task<AuthResponseDto?> PostAuthAsync<T>(string url, T dto, string defaultMessage)
     {
-        try 
+        try
         {
-            var response = await _http.PostAsJsonAsync("api/auth/login", dto);
+            var response = await _http.PostAsJsonAsync(url, dto);
             var content = await response.Content.ReadAsStringAsync();
 
-            if (response.IsSuccessStatusCode)
-            {
-                if (!string.IsNullOrWhiteSpace(content))
-                    return System.Text.Json.JsonSerializer.Deserialize<AuthResponseDto>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            else
-            {
-                return ParseErrorResponse(content, "Invalid email or password.");
-            }
-            return new AuthResponseDto { Success = false, Message = "Invalid email or password." };
+            if (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(content))
+                return JsonSerializer.Deserialize<AuthResponseDto>(content, JsonOptions);
+
+            return ParseErrorResponse(content, defaultMessage);
         }
         catch (Exception ex)
         {
@@ -141,13 +119,13 @@ public class ApiClient
             return new AuthResponseDto { Success = false, Message = defaultMessage };
 
         try {
-            var errorResult = System.Text.Json.JsonSerializer.Deserialize<AuthResponseDto>(content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var errorResult = JsonSerializer.Deserialize<AuthResponseDto>(content, JsonOptions);
             if (errorResult != null && !string.IsNullOrEmpty(errorResult.Message))
                 return errorResult;
         } catch {}
 
         try {
-            var problem = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(content);
+            var problem = JsonSerializer.Deserialize<JsonElement>(content);
             
             var msg = "";
             if (problem.TryGetProperty("title", out var titleProp))

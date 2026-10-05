@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using GradLink.API.Data;
 using GradLink.Shared.DTOs;
@@ -20,11 +21,7 @@ public class JobService
         string? location = null,
         ExperienceLevel? experienceLevel = null)
     {
-        var query = _context.JobListings
-            .Include(j => j.Employer)
-            .Include(j => j.Applications)
-            .Where(j => j.IsActive)
-            .AsQueryable();
+        var query = _context.JobListings.Where(j => j.IsActive);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -46,72 +43,49 @@ public class JobService
 
         return await query
             .OrderByDescending(j => j.PostedDate)
-            .Select(j => MapToDto(j))
+            .Select(ToDto)
             .ToListAsync();
     }
 
     public async Task<JobListingDto?> GetJobByIdAsync(int id)
     {
-        var job = await _context.JobListings
-            .Include(j => j.Employer)
-            .Include(j => j.Applications)
-            .FirstOrDefaultAsync(j => j.Id == id);
-
-        return job == null ? null : MapToDto(job);
+        return await _context.JobListings
+            .Where(j => j.Id == id)
+            .Select(ToDto)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<List<JobListingDto>> GetEmployerJobsAsync(string employerId)
     {
         return await _context.JobListings
-            .Include(j => j.Employer)
-            .Include(j => j.Applications)
             .Where(j => j.EmployerId == employerId)
             .OrderByDescending(j => j.PostedDate)
-            .Select(j => MapToDto(j))
+            .Select(ToDto)
             .ToListAsync();
     }
 
     public async Task<JobListingDto> CreateJobAsync(string employerId, CreateJobDto dto)
     {
-        var employer = await _context.Users.FindAsync(employerId);
-        var job = new JobListing
-        {
-            Title = dto.Title,
-            Description = dto.Description,
-            Location = dto.Location,
-            Industry = dto.Industry,
-            ExperienceLevel = dto.ExperienceLevel,
-            SalaryRange = dto.SalaryRange,
-            Deadline = dto.Deadline,
-            EmployerId = employerId
-        };
+        var job = new JobListing { EmployerId = employerId };
+        CopyFields(dto, job);
 
         _context.JobListings.Add(job);
         await _context.SaveChangesAsync();
 
-        job.Employer = employer!;
-        return MapToDto(job);
+        return (await GetJobByIdAsync(job.Id))!;
     }
 
     public async Task<JobListingDto?> UpdateJobAsync(int id, string employerId, CreateJobDto dto)
     {
         var job = await _context.JobListings
-            .Include(j => j.Employer)
-            .Include(j => j.Applications)
             .FirstOrDefaultAsync(j => j.Id == id && j.EmployerId == employerId);
 
         if (job == null) return null;
 
-        job.Title = dto.Title;
-        job.Description = dto.Description;
-        job.Location = dto.Location;
-        job.Industry = dto.Industry;
-        job.ExperienceLevel = dto.ExperienceLevel;
-        job.SalaryRange = dto.SalaryRange;
-        job.Deadline = dto.Deadline;
-
+        CopyFields(dto, job);
         await _context.SaveChangesAsync();
-        return MapToDto(job);
+
+        return await GetJobByIdAsync(job.Id);
     }
 
     public async Task<bool> ToggleJobStatusAsync(int id, string employerId, bool isActive)
@@ -138,7 +112,18 @@ public class JobService
         return true;
     }
 
-    private static JobListingDto MapToDto(JobListing j) => new()
+    private static void CopyFields(CreateJobDto dto, JobListing job)
+    {
+        job.Title = dto.Title;
+        job.Description = dto.Description;
+        job.Location = dto.Location;
+        job.Industry = dto.Industry;
+        job.ExperienceLevel = dto.ExperienceLevel;
+        job.SalaryRange = dto.SalaryRange;
+        job.Deadline = dto.Deadline;
+    }
+
+    private static readonly Expression<Func<JobListing, JobListingDto>> ToDto = j => new JobListingDto
     {
         Id = j.Id,
         Title = j.Title,
@@ -149,9 +134,9 @@ public class JobService
         SalaryRange = j.SalaryRange,
         PostedDate = j.PostedDate,
         Deadline = j.Deadline,
-        CompanyName = j.Employer?.CompanyName ?? "Unknown",
+        CompanyName = j.Employer.CompanyName ?? "Unknown",
         EmployerId = j.EmployerId,
-        ApplicationCount = j.Applications?.Count ?? 0,
+        ApplicationCount = j.Applications.Count,
         IsActive = j.IsActive
     };
 }

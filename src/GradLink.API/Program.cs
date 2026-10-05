@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -139,7 +140,10 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
-builder.Services.AddProblemDetails();
+// .NET 8 only adds a traceId to MVC-generated problem details; add it to the rest (exception handler,
+// status code pages) so every error response can be correlated with the server logs.
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+    context.ProblemDetails.Extensions.TryAdd("traceId", Activity.Current?.Id ?? context.HttpContext.TraceIdentifier));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddHttpClient();
@@ -185,6 +189,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapFallback("/api/{**path}", () => Results.NotFound());
 app.MapFallbackToFile("index.html");
 
 app.Run();

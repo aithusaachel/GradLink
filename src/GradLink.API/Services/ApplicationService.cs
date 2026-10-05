@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using GradLink.API.Data;
 using GradLink.Shared.DTOs;
@@ -19,25 +20,22 @@ public class ApplicationService
     public async Task<List<ApplicationDto>> GetGraduateApplicationsAsync(string graduateId)
     {
         return await _context.JobApplications
-            .Include(a => a.JobListing).ThenInclude(j => j.Employer)
-            .Include(a => a.Graduate)
             .Where(a => a.GraduateId == graduateId)
             .OrderByDescending(a => a.AppliedDate)
-            .Select(a => MapToDto(a))
+            .Select(ToDto)
             .ToListAsync();
     }
 
     public async Task<List<ApplicationDto>> GetJobApplicantsAsync(int jobId, string employerId)
     {
         return await _context.JobApplications
-            .Include(a => a.JobListing)
-            .Include(a => a.Graduate)
             .Where(a => a.JobListingId == jobId && a.JobListing.EmployerId == employerId)
             .OrderByDescending(a => a.AppliedDate)
-            .Select(a => MapToDto(a))
+            .Select(ToDto)
             .ToListAsync();
     }
 
+    /// <summary>Returns null when the job doesn't exist or is closed, or the graduate has already applied.</summary>
     public async Task<ApplicationDto?> ApplyAsync(string graduateId, CreateApplicationDto dto)
     {
         // Check if already applied
@@ -46,8 +44,8 @@ public class ApplicationService
 
         if (existing) return null;
 
-        var job = await _context.JobListings.Include(j => j.Employer).FirstOrDefaultAsync(j => j.Id == dto.JobListingId);
-        if (job == null) return null;
+        var job = await _context.JobListings.FindAsync(dto.JobListingId);
+        if (job == null || !job.IsActive || job.Deadline?.Date < DateTime.UtcNow.Date) return null;
 
         var application = new JobApplication
         {
@@ -78,20 +76,17 @@ public class ApplicationService
         // Send real-time notification
         await _notifications.PublishAsync(notification);
 
-        application.JobListing = job;
-        application.Graduate = graduate!;
-        return MapToDto(application);
+        return await GetByIdAsync(application.Id);
     }
 
     public async Task<ApplicationDto?> UpdateStatusAsync(string employerId, UpdateApplicationStatusDto dto)
     {
         var application = await _context.JobApplications
-            .Include(a => a.JobListing).ThenInclude(j => j.Employer)
-            .Include(a => a.Graduate)
+            .Include(a => a.JobListing)
             .FirstOrDefaultAsync(a => a.Id == dto.ApplicationId && a.JobListing.EmployerId == employerId);
 
         if (application == null) return null;
-        if (application.Status == dto.NewStatus) return MapToDto(application);
+        if (application.Status == dto.NewStatus) return await GetByIdAsync(application.Id);
 
         application.Status = dto.NewStatus;
 
@@ -105,7 +100,7 @@ public class ApplicationService
         // Send real-time notification
         await _notifications.PublishAsync(notification);
 
-        return MapToDto(application);
+        return await GetByIdAsync(application.Id);
     }
 
     public async Task<DashboardStatsDto> GetGraduateStatsAsync(string graduateId)
@@ -126,36 +121,36 @@ public class ApplicationService
 
     public async Task<DashboardStatsDto> GetEmployerStatsAsync(string employerId)
     {
-        var jobs = await _context.JobListings
-            .Include(j => j.Applications)
-            .Where(j => j.EmployerId == employerId)
-            .ToListAsync();
-
-        var allApps = jobs.SelectMany(j => j.Applications).ToList();
+        var jobs = _context.JobListings.Where(j => j.EmployerId == employerId);
+        var applications = _context.JobApplications.Where(a => a.JobListing.EmployerId == employerId);
+        var today = DateTime.UtcNow.Date;
 
         return new DashboardStatsDto
         {
-            TotalJobsPosted = jobs.Count,
-            ActiveJobs = jobs.Count(j => j.IsActive),
-            TotalApplicants = allApps.Count,
-            NewApplicantsToday = allApps.Count(a => a.AppliedDate.Date == DateTime.UtcNow.Date)
+            TotalJobsPosted = await jobs.CountAsync(),
+            ActiveJobs = await jobs.CountAsync(j => j.IsActive),
+            TotalApplicants = await applications.CountAsync(),
+            NewApplicantsToday = await applications.CountAsync(a => a.AppliedDate >= today)
         };
     }
 
-    private static ApplicationDto MapToDto(JobApplication a) => new()
+    private Task<ApplicationDto> GetByIdAsync(int id) =>
+        _context.JobApplications.Where(a => a.Id == id).Select(ToDto).SingleAsync();
+
+    private static readonly Expression<Func<JobApplication, ApplicationDto>> ToDto = a => new ApplicationDto
     {
         Id = a.Id,
         JobListingId = a.JobListingId,
-        JobTitle = a.JobListing?.Title ?? "",
-        CompanyName = a.JobListing?.Employer?.CompanyName ?? "",
+        JobTitle = a.JobListing.Title,
+        CompanyName = a.JobListing.Employer.CompanyName ?? "",
         GraduateId = a.GraduateId,
-        GraduateName = a.Graduate?.FullName ?? "",
-        GraduateEmail = a.Graduate?.Email,
-        GraduateUniversity = a.Graduate?.University,
-        GraduateDegree = a.Graduate?.Degree,
+        GraduateName = a.Graduate.FullName,
+        GraduateEmail = a.Graduate.Email,
+        GraduateUniversity = a.Graduate.University,
+        GraduateDegree = a.Graduate.Degree,
         Status = a.Status,
         AppliedDate = a.AppliedDate,
         CoverLetter = a.CoverLetter,
-        HasCv = !string.IsNullOrEmpty(a.Graduate?.CvFilePath)
+        HasCv = !string.IsNullOrEmpty(a.Graduate.CvFilePath)
     };
 }

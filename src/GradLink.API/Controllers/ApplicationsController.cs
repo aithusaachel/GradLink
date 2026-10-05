@@ -42,7 +42,7 @@ public class ApplicationsController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var result = await _applicationService.ApplyAsync(userId, dto);
-        if (result == null) return BadRequest("Unable to apply. You may have already applied to this job.");
+        if (result == null) return BadRequest("Unable to apply. The job may be closed, or you have already applied.");
         return Ok(result);
     }
 
@@ -54,23 +54,5 @@ public class ApplicationsController : ControllerBase
         var result = await _applicationService.UpdateStatusAsync(userId, dto);
         if (result == null) return NotFound();
         return Ok(result);
-    }
-
-    [Authorize(Roles = "Graduate")]
-    [HttpGet("stats/graduate")]
-    public async Task<IActionResult> GetGraduateStats()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var stats = await _applicationService.GetGraduateStatsAsync(userId);
-        return Ok(stats);
-    }
-
-    [Authorize(Roles = "Employer")]
-    [HttpGet("stats/employer")]
-    public async Task<IActionResult> GetEmployerStats()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var stats = await _applicationService.GetEmployerStatsAsync(userId);
-        return Ok(stats);
     }
 }

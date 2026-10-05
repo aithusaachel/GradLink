@@ -6,6 +6,16 @@ namespace GradLink.Client.Services;
 
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
+    private static readonly AuthenticationState Anonymous = new(new ClaimsPrincipal(new ClaimsIdentity()));
+
+    // The API writes ClaimTypes.* URIs; map the short JWT names too in case a token uses them.
+    private static readonly Dictionary<string, string> ClaimAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["role"] = ClaimTypes.Role,
+        ["nameid"] = ClaimTypes.NameIdentifier,
+        ["sub"] = ClaimTypes.NameIdentifier
+    };
+
     private readonly LocalStorageService _localStorage;
 
     public CustomAuthenticationStateProvider(LocalStorageService localStorage)
@@ -17,94 +27,64 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
         var token = await _localStorage.GetItemAsync("authToken");
         if (string.IsNullOrWhiteSpace(token))
-        {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
-        }
+            return Anonymous;
 
-        try
+        var user = ParseToken(token);
+        if (user == null)
         {
-            var claims = ParseClaimsFromJwt(token).ToList();
-            
-            // Check expiry
-            var expClaim = claims.FirstOrDefault(c => c.Type == "exp")?.Value;
-            if (expClaim != null && long.TryParse(expClaim, out var exp))
-            {
-                var expDate = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
-                if (expDate <= DateTime.UtcNow)
-                {
-                    await _localStorage.RemoveItemAsync("authToken");
-                    return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
-                }
-            }
-
-            var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role);
-            return new AuthenticationState(new ClaimsPrincipal(identity));
-        }
-        catch
-        {
-            // If token is invalid/expired
+            // Malformed or expired: forget it so the user is sent back to the login page.
             await _localStorage.RemoveItemAsync("authToken");
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return Anonymous;
         }
+
+        return new AuthenticationState(user);
     }
 
     public void NotifyUserAuthentication(string token)
     {
-        var claims = ParseClaimsFromJwt(token);
-        var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role);
-        var user = new ClaimsPrincipal(identity);
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+        var user = ParseToken(token);
+        NotifyAuthenticationStateChanged(Task.FromResult(user == null ? Anonymous : new AuthenticationState(user)));
     }
 
     public void NotifyUserLogout()
     {
-        var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
-        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
+        NotifyAuthenticationStateChanged(Task.FromResult(Anonymous));
     }
 
-    private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
+    /// <summary>
+    /// Reads the claims from the JWT payload, or returns null if the token is malformed or expired.
+    /// The signature is not checked here; the API does that on every request.
+    /// </summary>
+    private static ClaimsPrincipal? ParseToken(string jwt)
     {
-        var claims = new List<Claim>();
         var parts = jwt.Split('.');
-        if (parts.Length < 2) return claims;
+        if (parts.Length != 3)
+            return null;
 
-        var payload = parts[1];
-        var jsonBytes = ParseBase64WithoutPadding(payload);
-        var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-
-        if (keyValuePairs != null)
+        try
         {
-            foreach (var kvp in keyValuePairs)
-            {
-                var val = kvp.Value.ToString() ?? string.Empty;
-                claims.Add(new Claim(kvp.Key, val));
+            using var payload = JsonDocument.Parse(DecodeBase64Url(parts[1]));
+            var root = payload.RootElement;
 
-                if (string.Equals(kvp.Key, "role", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(kvp.Key, ClaimTypes.Role, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(kvp.Key, "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, val));
-                }
+            if (root.TryGetProperty("exp", out var exp) &&
+                DateTimeOffset.FromUnixTimeSeconds(exp.GetInt64()) <= DateTimeOffset.UtcNow)
+                return null;
 
-                if (string.Equals(kvp.Key, "nameid", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(kvp.Key, "sub", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(kvp.Key, ClaimTypes.NameIdentifier, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(kvp.Key, "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", StringComparison.OrdinalIgnoreCase))
-                {
-                    claims.Add(new Claim(ClaimTypes.NameIdentifier, val));
-                }
-            }
+            var claims = root.EnumerateObject()
+                .Select(p => new Claim(ClaimAliases.GetValueOrDefault(p.Name, p.Name), p.Value.ToString()));
+
+            return new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt", ClaimTypes.NameIdentifier, ClaimTypes.Role));
         }
-        return claims;
+        catch (Exception e) when (e is FormatException or JsonException or InvalidOperationException)
+        {
+            return null;
+        }
     }
 
-    private byte[] ParseBase64WithoutPadding(string base64)
+    // JWTs use unpadded base64url ('-' and '_' instead of '+' and '/').
+    private static byte[] DecodeBase64Url(string value)
     {
-        switch (base64.Length % 4)
-        {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
-        }
-        return Convert.FromBase64String(base64);
+        var base64 = value.Replace('-', '+').Replace('_', '/');
+        return Convert.FromBase64String(base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '='));
     }
 }
