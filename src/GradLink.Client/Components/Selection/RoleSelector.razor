@@ -9,19 +9,31 @@
                 class="role-option @(isSelected ? "selected" : "")"
                 aria-pressed="@isSelected"
                 @onclick="() => Select(option.Value)">
-            <div class="role-option-inner">
+            <div class="role-option-content">
                 @if (option.Icon is not null)
                 {
-                    <span class="role-option-icon">@option.Icon</span>
+                    <div class="role-option-icon-box" style="@(!string.IsNullOrEmpty(option.IconBgColor) ? $"background-color: {option.IconBgColor}; color: {option.IconColor ?? "inherit"};" : "")">
+                        @option.Icon
+                    </div>
                 }
 
-                <span class="role-option-label">@option.Label</span>
+                <div class="role-option-text">
+                    <span class="role-option-label">@option.Label</span>
+                    @if (!string.IsNullOrWhiteSpace(option.Description))
+                    {
+                        <span class="role-option-description">@option.Description</span>
+                    }
+                </div>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(option.Description))
-            {
-                <span class="role-option-description">@option.Description</span>
-            }
+            <div class="role-option-indicator @(isSelected ? "selected" : "")">
+                @if (isSelected)
+                {
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                }
+            </div>
         </button>
     }
 </div>

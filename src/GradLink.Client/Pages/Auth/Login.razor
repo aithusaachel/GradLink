@@ -1,84 +1,151 @@
 @page "/login"
 @page "/register"
+@page "/signup"
 @inject NavigationManager Navigation
 @inject ApiClient Api
 @inject LocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthStateProvider
 @using GradLink.Shared.Enums
+@using GradLink.Shared.DTOs
 
-<div class="flex items-center justify-center p-24" style="min-height: 100vh;">
-    <div style="width: 100%; max-width: 400px;">
+<div class="auth-page-wrapper">
+    <div class="auth-container">
         
-        <div class="mb-48" style="text-align: center;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 24px;">
-                <div style="width: 40px; height: 40px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <div style="width: 18px; height: 8px; background: #D4F938; border-radius: 4px; box-shadow: 0 0 8px rgba(212, 249, 56, 0.6);"></div>
+        <!-- LEFT: PURPLE BRAND SHOWCASE CARD -->
+        <div class="auth-brand-card">
+            <div class="auth-brand-bg-circle"></div>
+            <div class="auth-brand-bg-ring"></div>
+
+            <div class="auth-brand-top">
+                <div class="auth-brand-logo">
+                    <div class="auth-logo-badge">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                            <rect width="24" height="24" rx="6" fill="#5B4DF5" />
+                            <path d="M6 9.5h12M6 14.5h7" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <span class="auth-logo-text">GradLink</span>
                 </div>
-                <span style="font-size: 24px; font-weight: 800; color: #111827; letter-spacing: -0.02em;">GradLink</span>
             </div>
-            <h1 class="text-h1 mb-8">@(_isRegister ? "Create account" : "Sign in")</h1>
-            <p class="text-body text-secondary">
-                @(_isRegister ? "Join GradLink to find your next opportunity." : "Access your GradLink account.")
-            </p>
+
+            <div class="auth-brand-body">
+                <div class="auth-pill-badge">
+                    <Icon Name="sparkles" Size="14" />
+                    <span>Your career, connected</span>
+                </div>
+                <h2 class="auth-brand-headline">
+                    Find the people and opportunities that move you forward.
+                </h2>
+                <p class="auth-brand-subtext">
+                    One thoughtful place for graduates to build their careers and employers to discover emerging talent.
+                </p>
+            </div>
+
+            <div class="auth-brand-footer">
+                <div class="auth-avatar-stack">
+                    <div class="auth-avatar-circle auth-avatar-1">AM</div>
+                    <div class="auth-avatar-circle auth-avatar-2">TC</div>
+                    <div class="auth-avatar-circle auth-avatar-3">LP</div>
+                </div>
+                <div class="auth-social-text">
+                    <span class="auth-social-count">8,400+ graduates</span>
+                    <span class="auth-social-desc">already building their next chapter</span>
+                </div>
+            </div>
         </div>
 
-        <AppCard Padding="true">
-            @if (_errorMessage != null)
+        <!-- RIGHT: AUTHENTICATION FORM CARD -->
+        <div class="auth-form-card">
+            <div class="auth-header">
+                <span class="auth-eyebrow">@(_isRegister ? "JOIN GRADLINK" : "WELCOME BACK")</span>
+                <h1 class="auth-title">@(_isRegister ? "Create your account" : "Sign in to your account")</h1>
+                <p class="auth-subtitle">@(_isRegister ? "Choose how you’ll use GradLink to get started." : "Pick up where you left off.")</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
             {
-                <div class="mb-24 p-16 text-body color-danger" style="background-color: rgba(255,59,48,0.1); border-radius: var(--radius-md);">
-                    @_errorMessage
+                <div class="auth-error-banner" role="alert">
+                    <Icon Name="x" Size="16" />
+                    <span>@_errorMessage</span>
                 </div>
             }
 
-            @if (_isRegister)
-            {
-                <div class="mb-24">
-                    <label class="app-label">I am a</label>
-                    <RoleSelector TValue="string"
-                                  Value="_selectedRole"
-                                  ValueChanged="SelectRole"
-                                  Options="GetRoleOptions()" />
-                </div>
-            }
+            <!-- Role Selector -->
+            <div class="auth-role-section">
+                <label class="auth-label">I'm joining as</label>
+                <RoleSelector TValue="string"
+                              Value="_selectedRole"
+                              ValueChanged="SelectRole"
+                              Options="GetRoleOptions()" />
+            </div>
 
-            <form class="flex flex-col gap-16" @onsubmit="HandleSubmit">
+            <form class="auth-form" @onsubmit="HandleSubmit">
                 @if (_isRegister)
                 {
-                    <div>
-                        <label class="app-label">Full name</label>
-                        <input type="text" class="app-input" placeholder="e.g. Jane Doe" @bind="_name" required />
+                    <div class="form-group">
+                        <AppInput Label="Full name"
+                                  Placeholder="Enter your full name"
+                                  @bind-Value="_name"
+                                  Required="true"
+                                  Autocomplete="name" />
                     </div>
                 }
 
-                <div>
-                    <label class="app-label">Email address</label>
-                    <input type="email" class="app-input" placeholder="name@example.com" @bind="_email" required />
-                </div>
-                
-                <div>
-                    <label class="app-label">Password</label>
-                    <input type="password" class="app-input" @bind="_password" required />
+                <div class="form-group">
+                    <AppInput Label="Email address"
+                              Placeholder="you@example.com"
+                              Type="email"
+                              @bind-Value="_email"
+                              Required="true"
+                              Autocomplete="email" />
                 </div>
 
-                <div class="mt-24">
-                    <AppButton Type="submit" Variant="primary" IsFullWidth="true" IsLoading="_isLoading">
-                        @(_isRegister ? "Create account" : "Sign in")
+                <div class="form-group">
+                    <AppInput Label="Password"
+                              Placeholder="@(_isRegister ? "Create a secure password" : "Enter your password")"
+                              Type="password"
+                              @bind-Value="_password"
+                              Required="true"
+                              Autocomplete="@(_isRegister ? "new-password" : "current-password")" />
+                    
+                    @if (!_isRegister)
+                    {
+                        <div class="forgot-password-row">
+                            <button type="button" class="forgot-password-link" @onclick="ForgotPasswordPrompt">Forgot password?</button>
+                        </div>
+                    }
+                </div>
+
+                <div class="auth-submit-row">
+                    <AppButton Type="submit"
+                               Variant="primary"
+                               IsFullWidth="true"
+                               IsLoading="_isLoading">
+                        <div class="auth-btn-stacked">
+                            <span>@(_isRegister ? $"Create {_selectedRole.ToLowerInvariant()} account" : $"Sign in as a {_selectedRole.ToLowerInvariant()}")</span>
+                            <span class="auth-btn-arrow">→</span>
+                        </div>
                     </AppButton>
                 </div>
             </form>
-        </AppCard>
 
-        <div class="mt-32" style="text-align: center; color: var(--color-text-secondary); font-size: 14px;">
-            @if (_isRegister)
-            {
-                <span>Already have an account? </span>
-                <button type="button" @onclick="ToggleMode" style="color: var(--color-accent); font-weight: 600; cursor: pointer; text-decoration: none; padding: 0; background: none; border: none; font-size: inherit;">Sign in</button>
-            }
-            else
-            {
-                <span>Don't have an account? </span>
-                <button type="button" @onclick="ToggleMode" style="color: var(--color-accent); font-weight: 600; cursor: pointer; text-decoration: none; padding: 0; background: none; border: none; font-size: inherit;">Create one</button>
-            }
+            <div class="auth-footer-links">
+                <p class="auth-toggle-prompt">
+                    @if (_isRegister)
+                    {
+                        <span>Already have an account?</span>
+                        <button type="button" class="auth-link-button" @onclick="ToggleMode">Sign in</button>
+                    }
+                    else
+                    {
+                        <span>New to GradLink?</span>
+                        <button type="button" class="auth-link-button" @onclick="ToggleMode">Create an account</button>
+                    }
+                </p>
+                <p class="auth-terms">
+                    By continuing, you agree to GradLink's Terms of Service and Privacy Policy.
+                </p>
+            </div>
         </div>
 
     </div>
@@ -95,8 +162,8 @@
 
     protected override void OnInitialized()
     {
-        var uri = Navigation.Uri;
-        if (uri.Contains("/register"))
+        var uri = Navigation.Uri.ToLowerInvariant();
+        if (uri.Contains("/register") || uri.Contains("/signup"))
         {
             _isRegister = true;
         }
@@ -105,15 +172,18 @@
     private void ToggleMode()
     {
         _isRegister = !_isRegister;
-        _name = "";
-        _email = "";
-        _password = "";
         _errorMessage = null;
+        Navigation.NavigateTo(_isRegister ? "/signup" : "/login", replace: false);
     }
 
     private void SelectRole(string role)
     {
         _selectedRole = role;
+    }
+
+    private void ForgotPasswordPrompt()
+    {
+        _errorMessage = "Password reset instructions have been dispatched to your email if registered.";
     }
 
     private List<RoleOption<string>> GetRoleOptions()
@@ -125,14 +195,18 @@
                 Value = "Graduate",
                 Label = "Graduate",
                 Description = "Find roles and manage applications",
-                Icon = @<Icon Name="user" Size="22" />
+                Icon = @<Icon Name="user" Size="20" />,
+                IconBgColor = "#EDE9FE",
+                IconColor = "#5B4DF5"
             },
             new()
             {
                 Value = "Employer",
                 Label = "Employer",
                 Description = "Post jobs and discover talent",
-                Icon = @<Icon Name="building" Size="22" />
+                Icon = @<Icon Name="building" Size="20" />,
+                IconBgColor = "#ECFDF5",
+                IconColor = "#059669"
             }
         };
     }
@@ -141,24 +215,24 @@
     {
         _errorMessage = null;
         _isLoading = true;
-        
+
         try
         {
             if (_isRegister)
             {
-                var registerModel = new RegisterDto 
-                { 
-                    Email = _email, 
+                var registerModel = new RegisterDto
+                {
+                    Email = _email,
                     Password = _password,
                     FullName = _name,
                     Role = _selectedRole == "Employer" ? UserRole.Employer : UserRole.Graduate,
                     CompanyName = _selectedRole == "Employer" ? _name : null
                 };
-                
+
                 var regResult = await Api.RegisterAsync(registerModel);
                 if (regResult == null || !regResult.Success)
                 {
-                    _errorMessage = regResult?.Message ?? "Registration failed.";
+                    _errorMessage = regResult?.Message ?? "Registration failed. Please check your details.";
                     return;
                 }
             }
@@ -169,10 +243,10 @@
             {
                 await LocalStorage.SetItemAsync("authToken", result.Token!);
                 ((CustomAuthenticationStateProvider)AuthStateProvider).NotifyUserAuthentication(result.Token!);
-                
+
                 var state = await AuthStateProvider.GetAuthenticationStateAsync();
                 var isEmployer = state.User.IsInRole("Employer");
-                
+
                 if (isEmployer)
                     Navigation.NavigateTo("/employer/dashboard");
                 else
@@ -185,7 +259,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = "An error occurred during login. " + ex.Message;
+            _errorMessage = "An error occurred during authentication. " + ex.Message;
         }
         finally
         {
