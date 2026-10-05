@@ -68,10 +68,17 @@
             </form>
         </AppCard>
 
-        <div class="mt-32" style="text-align: center;">
-            <button class="app-btn app-btn-ghost" @onclick="ToggleMode">
-                @(_isRegister ? "Already have an account? Sign in" : "Don't have an account? Create one")
-            </button>
+        <div class="mt-32" style="text-align: center; color: var(--color-text-secondary); font-size: 14px;">
+            @if (_isRegister)
+            {
+                <span>Already have an account? </span>
+                <button type="button" @onclick="ToggleMode" style="color: var(--color-accent); font-weight: 600; cursor: pointer; text-decoration: none; padding: 0; background: none; border: none; font-size: inherit;">Sign in</button>
+            }
+            else
+            {
+                <span>Don't have an account? </span>
+                <button type="button" @onclick="ToggleMode" style="color: var(--color-accent); font-weight: 600; cursor: pointer; text-decoration: none; padding: 0; background: none; border: none; font-size: inherit;">Create one</button>
+            }
         </div>
 
     </div>
