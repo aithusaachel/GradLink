@@ -19,10 +19,7 @@
             <div class="auth-brand-top">
                 <div class="auth-brand-logo">
                     <div class="auth-logo-badge">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                            <rect width="24" height="24" rx="6" fill="#5B4DF5" />
-                            <path d="M6 9.5h12M6 14.5h7" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
-                        </svg>
+                        <div class="auth-logo-capsule"></div>
                     </div>
                     <span class="auth-logo-text">GradLink</span>
                 </div>
@@ -121,10 +118,7 @@
                                Variant="primary"
                                IsFullWidth="true"
                                IsLoading="_isLoading">
-                        <div class="auth-btn-stacked">
-                            <span>@(_isRegister ? $"Create {_selectedRole.ToLowerInvariant()} account" : $"Sign in as a {_selectedRole.ToLowerInvariant()}")</span>
-                            <span class="auth-btn-arrow">→</span>
-                        </div>
+                        @(_isRegister ? $"Create {_selectedRole.ToLowerInvariant()} account" : $"Sign in as a {_selectedRole.ToLowerInvariant()}")
                     </AppButton>
                 </div>
             </form>

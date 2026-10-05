@@ -68,14 +68,23 @@
 }
 
 .auth-logo-badge {
-    width: 36px;
-    height: 36px;
-    background: #FFFFFF;
-    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    background: #111827;
+    border-radius: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    flex-shrink: 0;
+}
+
+.auth-logo-capsule {
+    width: 17px;
+    height: 7px;
+    background: #D4F938;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(212, 249, 56, 0.7);
 }
 
 .auth-logo-text {
